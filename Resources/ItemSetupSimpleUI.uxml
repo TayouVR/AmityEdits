@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <uie:PropertyField binding-path="itemDefaultActiveState" label="Default Active State" />
+    <uie:PropertyField binding-path="itemPreviewSelection" label="Position" />
+</ui:UXML>

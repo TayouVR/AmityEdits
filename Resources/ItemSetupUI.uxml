@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:Label text="Hello World! From UXML" />
+    <uie:PropertyField view-data-key="itemDefaultActiveState" label="Enabled at rest" />
+    <uie:PropertyField view-data-key="itemStaysActive" label="Keep Item Always Active" />
+</ui:UXML>
