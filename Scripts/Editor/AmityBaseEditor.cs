@@ -120,8 +120,14 @@ namespace org.Tayou.AmityEdits {
             if (visualTree) {
                 _root = visualTree.CloneTree();
 
-                ToolbarSearchField searchField = _root.GetFirstAncestorOfType<ToolbarSearchField>();
-                ToolbarMenu languageSelector = _root.GetFirstAncestorOfType<ToolbarMenu>();
+                Toolbar toolbar = _root.Children().First() as Toolbar;
+
+                if (toolbar?.Children().FirstOrDefault(e => e.name == "ToolName") is Label nameLabel) {
+                    nameLabel.text = $"mity v{AmityEditsPlugin.Version}";
+                }
+
+                ToolbarSearchField searchField = toolbar?.GetFirstAncestorOfType<ToolbarSearchField>();
+                ToolbarMenu languageSelector = toolbar?.GetFirstAncestorOfType<ToolbarMenu>();
                 
                 CreateCustomInspectorInternal();
                 
