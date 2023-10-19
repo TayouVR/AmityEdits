@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <uie:Toolbar style="flex-direction: row;">
+        <ui:Label text="    " name="ToolIcon" style="background-image: url(&apos;/Packages/org.tayou.amity-edits/Gizmos/AmityBaseComponent.png&apos;); font-size: 11px; margin-left: 2px; margin-right: 0; margin-top: 4px; margin-bottom: 4px;" />
+        <ui:Label text="mity Edits" name="ToolName" style="-unity-text-align: middle-center; -unity-font-style: italic;" />
+        <uie:ToolbarSearchField focusable="true" tooltip="Filter Fields" style="flex-grow: 1; flex-shrink: 1; width: auto;" />
+        <uie:ToolbarMenu name="Language" text="Language" style="flex-direction: row;" />
+    </uie:Toolbar>
+</ui:UXML>

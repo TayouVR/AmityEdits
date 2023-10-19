@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -137,9 +138,8 @@ namespace org.Tayou.AmityEdits {
             serializedObject.Update();
 
             EditorGUILayout.PropertyField(serializedObject.FindProperty("itemDefaultActiveState"), new GUIContent("Enabled at rest"), true);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("itemStaysActive"), new GUIContent("Keep Item Always Active"), true);
             
-            EditorGUILayout.LabelField("Reset Tranform");
+            EditorGUILayout.LabelField("Reset Transform");
             EditorGUILayout.PropertyField(serializedObject.FindProperty("restPosition"), new GUIContent("Position"), true);
             EditorGUILayout.PropertyField(serializedObject.FindProperty("restRotation"), new GUIContent("Rotation"), true);
 
@@ -148,13 +148,18 @@ namespace org.Tayou.AmityEdits {
             //EditorUtility.SetDirty(_itemSetup);
         }
 
-        /*public override VisualElement CreateInspectorGUI() {
+        public override VisualElement CreateInspector() {
             // Each editor window contains a root VisualElement object
             VisualElement root = new VisualElement();
-
-            // VisualElements objects can contain other VisualElement following a tree hierarchy.
-            VisualElement label = new Label("Hello World! From C#");
-            root.Add(label);
+            
+            root.Add(new PropertyField(serializedObject.FindProperty("itemDefaultActiveState"), "Enabled at rest"));
+            
+            root.Add(new Label("Reset Transform"));
+            root.Add(new PropertyField(serializedObject.FindProperty("restPosition")));
+            root.Add(new PropertyField(serializedObject.FindProperty("restRotation")));
+            
+            // Default Inspector is ugly af, need to find a way to do (reorderable) lists, which don't suck ass
+            //root.Add(new PropertyField(serializedObject.FindProperty("targets")));
 
             // Import UXML
             VisualTreeAsset visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(AssetDatabase.GUIDToAssetPath("7cf2c731f759d7d4390271437e0b08b7"));
@@ -163,18 +168,9 @@ namespace org.Tayou.AmityEdits {
                 root.Add(labelFromUXML);
             }
 
-            // A stylesheet can be added to a VisualElement.
-            // The style will be applied to the VisualElement and all of its children.
-            StyleSheet styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(AssetDatabase.GUIDToAssetPath("4630ed2041dfd814ea1b5b2397ad1cf1"));
-            if (styleSheet) {
-                VisualElement labelWithStyle = new Label("Hello World! With Style");
-                labelWithStyle.styleSheets.Add(styleSheet);
-                root.Add(labelWithStyle);
-            }
-            
-            root.Add(new IMGUIContainer(OnInspectorGUI));
+            root.Add(new IMGUIContainer(() => Targets.DoLayoutList()));
             
             return root;
-        }*/
+        }
     }
 }

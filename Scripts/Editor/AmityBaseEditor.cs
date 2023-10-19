@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace org.Tayou.AmityEdits {
     
@@ -62,7 +65,9 @@ namespace org.Tayou.AmityEdits {
         }
     }
     public abstract class AmityBaseEditor : Editor {
-        
+        private VisualElement _root;
+        private string _currentSelection = "en_US";
+
         protected void DrawHeader(Rect headerShape) {
             float currentInspectorWidth = this.GetInstanceID() != 0 ? EditorWindow.focusedWindow.position.width : 0;
             Rect headerViewRect = new Rect(20, -21, currentInspectorWidth, 20);
@@ -105,5 +110,116 @@ namespace org.Tayou.AmityEdits {
         }
 
         public abstract void DrawInspector();
+        
+        public override VisualElement CreateInspectorGUI() {
+            // Each editor window contains a root VisualElement object
+            _root = new VisualElement();
+
+            // Import UXML
+            VisualTreeAsset visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(AssetDatabase.GUIDToAssetPath("3d86061ada3c4494f9c0a20d4cadba02"));
+            if (visualTree) {
+                _root = visualTree.CloneTree();
+
+                ToolbarSearchField searchField = _root.GetFirstAncestorOfType<ToolbarSearchField>();
+                ToolbarMenu languageSelector = _root.GetFirstAncestorOfType<ToolbarMenu>();
+                
+                CreateCustomInspectorInternal();
+                
+                if (languageSelector != null) {
+                    // TODO populate language menu from files
+                
+
+                    // TODO: Actually figure out a way to get a selection from this
+                    if (languageSelector.name != _currentSelection) {
+                        TranslateUI();
+                    }
+                }
+
+                if (searchField != null) {
+                    if (!string.IsNullOrEmpty(searchField?.value)) {
+                        SetVisibilityBasedOnName(_root, searchField.value);
+                    }
+                }
+            } else {
+                _root.Add(new Label("Something went wrong, Amity Edits couldn't be fully loaded, please make sure you have it correctly installed."));
+                CreateCustomInspectorInternal();
+            }
+            
+            _root.RegisterCallback<AttachToPanelEvent>(e => {
+                RunGUIAfterAttach();
+            });
+            
+            return _root;
+        }
+
+        /// <summary>
+        /// Initialize UI of actual Component
+        /// </summary>
+        private void CreateCustomInspectorInternal() {
+            VisualElement customInspector = CreateInspector();
+            customInspector.name = "InternalInspector";
+            _root.Add(customInspector);
+        }
+
+        private void RunGUIAfterAttach() {
+            if (_root.parent == null) return;
+            try {
+                // remove padding from parent element to make use of all the space in element
+                _root.parent.style.paddingLeft = 0;
+                _root.parent.style.paddingRight = 0;
+                _root.parent.style.paddingTop = 0;
+                _root.parent.style.paddingBottom = 0;
+
+                // add padding back to own element inside
+                VisualElement customInspector = _root.Children().First(e => e.name == "InternalInspector");
+                customInspector.style.paddingLeft = new StyleLength(15);
+                customInspector.style.paddingRight = new StyleLength(6);
+                customInspector.style.paddingTop = new StyleLength(2);
+                customInspector.style.paddingBottom = new StyleLength(2);
+                
+                // mess with header
+                foreach (var child in _root.parent.parent.Children()) {
+                    if (child.name.Contains("Header")) {
+                        // this is the header element, we could do something fancy with it... or leave it alone..
+                        // sadly its a IMGUI Container, so we can't really edit it from here. Not easily at least
+                        //child.visible = false;
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                Console.WriteLine(e);
+            }
+        }
+
+        /// <summary>
+        /// Translates the entire inspector
+        /// </summary>
+        private void TranslateUI() {
+            TranslateUIInternal(_root);
+        }
+
+        
+        private void TranslateUIInternal(VisualElement translationRoot) {
+            foreach (var child in translationRoot.Children()) {
+                // TODO: do translation lookup based on element name
+                // need classes to store translation keys and such,
+                // maybe as scriptableObject, with a inspector that allows easy in unity editing?
+                if (child.childCount > 0) {
+                    TranslateUIInternal(child);
+                }
+            }
+        }
+
+        private void SetVisibilityBasedOnName(VisualElement root, string name) {
+            foreach (var child in root.Children()) {
+                bool isVisible = !child.name.Contains(name);
+                child.visible = isVisible;
+                if (!isVisible && child.childCount > 0) {
+                    SetVisibilityBasedOnName(child, name);
+                }
+            }
+        }
+
+        public abstract VisualElement CreateInspector();
     }
 }

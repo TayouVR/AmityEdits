@@ -9,7 +9,6 @@ namespace org.Tayou.AmityEdits {
         
         public List<ItemData> targets = new List<ItemData>();
         public bool itemDefaultActiveState;
-        public bool itemStaysActive;
         public int itemPreviewIndex = -1;
 
         public Vector3 restPosition;
