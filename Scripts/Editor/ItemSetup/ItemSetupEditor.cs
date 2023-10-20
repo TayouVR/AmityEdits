@@ -134,20 +134,6 @@ namespace org.Tayou.AmityEdits {
             //EditorApplication.update += Update; // handle any continuous updates
         }
 
-        public override void DrawInspector() {
-            serializedObject.Update();
-
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("itemDefaultActiveState"), new GUIContent("Enabled at rest"), true);
-            
-            EditorGUILayout.LabelField("Reset Transform");
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("restPosition"), new GUIContent("Position"), true);
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("restRotation"), new GUIContent("Rotation"), true);
-
-            Targets.DoLayoutList();
-            
-            //EditorUtility.SetDirty(_itemSetup);
-        }
-
         public override VisualElement CreateInspector() {
             // Each editor window contains a root VisualElement object
             VisualElement root = new VisualElement();

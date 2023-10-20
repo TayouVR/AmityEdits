@@ -18,9 +18,10 @@ namespace org.Tayou.AmityEdits {
         private const string PackageJsonGuid = "d8946230fdb0492db31311fd7566afd0";
         private static string version;
         
-        public override string QualifiedName => "org.tayou.non_destructive_plugins";
-        
-        public override string DisplayName => "Tayous Non Destructive Plugins";
+        public override string QualifiedName => "org.tayou.amity-edits";
+
+        public const string Name = "Amity Edits";
+        public override string DisplayName => Name;
         
 
         /// <summary>

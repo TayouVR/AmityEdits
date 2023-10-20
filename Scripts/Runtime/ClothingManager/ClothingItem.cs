@@ -9,11 +9,11 @@ using VF.Utils.Controller;
 namespace org.Tayou.AmityEdits {
     [Serializable]
     [AddComponentMenu("Tayou Tools/ClothingManager Item")]
-    public class ClothingItem : MonoBehaviour {
-        public string name;
+    public class ClothingItem : AmityBaseComponent {
+        public new string name;
         //public VF.Model.State action; // TODO: implement UI for it somehow, or re-implement entire state/action
         //public GameObject gameObject;
-        public AnimationClip animation;
+        public new AnimationClip animation;
         public List<ClothingItem> incompatibilities;
 #if UNITY_EDITOR
         public VFABool parameter;

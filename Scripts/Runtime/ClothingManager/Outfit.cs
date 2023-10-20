@@ -5,7 +5,7 @@ using UnityEngine;
 namespace org.Tayou.AmityEdits {
     [Serializable]
     [AddComponentMenu("Tayou Tools/ClothingManager Outfit")]
-    public class Outfit : MonoBehaviour {
+    public class Outfit : AmityBaseComponent {
         public string name;
         public List<ClothingItem> ClothingItems;
     }

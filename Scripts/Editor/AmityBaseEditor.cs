@@ -102,14 +102,6 @@ namespace org.Tayou.AmityEdits {
         private static object GetProperty(string name, Type type, object instance) {
             return type.GetProperty(name, BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(instance);
         }
-
-        public override void OnInspectorGUI() {
-            //DrawHeader(new Rect());
-
-            DrawInspector();
-        }
-
-        public abstract void DrawInspector();
         
         public override VisualElement CreateInspectorGUI() {
             // Each editor window contains a root VisualElement object
@@ -147,7 +139,7 @@ namespace org.Tayou.AmityEdits {
                     }
                 }
             } else {
-                _root.Add(new Label("Something went wrong, Amity Edits couldn't be fully loaded, please make sure you have it correctly installed."));
+                _root.Add(new Label($"Something went wrong, {AmityEditsPlugin.Name} couldn't be fully loaded, please make sure you have it correctly installed."));
                 CreateCustomInspectorInternal();
             }
             
@@ -226,6 +218,12 @@ namespace org.Tayou.AmityEdits {
             }
         }
 
-        public abstract VisualElement CreateInspector();
+        public virtual VisualElement CreateInspector() {
+            VisualElement root = new VisualElement();
+            
+            root.Add(new IMGUIContainer(() => DrawDefaultInspector()));
+
+            return root;
+        }
     }
 }
