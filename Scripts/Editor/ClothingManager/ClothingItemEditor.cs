@@ -10,7 +10,7 @@ namespace org.Tayou.AmityEdits {
             
 
             root.Add(new PropertyField(serializedObject.FindProperty("name")));
-            root.Add(new PropertyField(serializedObject.FindProperty("animations")));
+            root.Add(new PropertyField(serializedObject.FindProperty("animation")));
             root.Add(new PropertyField(serializedObject.FindProperty("incompatibilities")));
             root.Add(new PropertyField(serializedObject.FindProperty("parameter")));
 

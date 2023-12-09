@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using VF.Component;
-#if UNITY_EDITOR
-using VF.Utils.Controller;
-#endif
 
 namespace org.Tayou.AmityEdits {
     [Serializable]
@@ -16,7 +12,7 @@ namespace org.Tayou.AmityEdits {
         public new AnimationClip animation;
         public List<ClothingItem> incompatibilities;
 #if UNITY_EDITOR
-        public VFABool parameter;
+        public AnimatorControllerParameter ParameterReference;
 #endif
     }
 }

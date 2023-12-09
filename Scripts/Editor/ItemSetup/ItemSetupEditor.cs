@@ -4,7 +4,6 @@ using UnityEditor.UIElements;
 using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UIElements;
-using VF.Inspector;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(ItemSetup), true)]
@@ -59,7 +58,8 @@ namespace org.Tayou.AmityEdits {
                     var position1 = itemTarget.transform.TransformPoint(itemTarget.position);
                     var cumAngle = Quaternion.Euler(itemTarget.rotation.eulerAngles) * itemTarget.transform.rotation;
                     var direction = new Vector3(Mathf.Cos(cumAngle.x), Mathf.Sin(cumAngle.y), Mathf.Tan(cumAngle.z));
-                    VRCFuryGizmoUtils.DrawArrow(position1, cumAngle * Vector3.up * 0.25f + position1, Color.cyan);
+                    GizmosUtil.DrawArrow(position1, cumAngle * Vector3.up * 0.25f + position1);
+                    //VRCFuryGizmoUtils.DrawArrow(position1, cumAngle * Vector3.up * 0.25f + position1, Color.cyan);
                 }
 
             }

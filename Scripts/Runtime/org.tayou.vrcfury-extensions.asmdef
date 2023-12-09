@@ -1,11 +1,9 @@
 {
     "name": "org.tayou.vrcfury-extensions",
     "references": [
-        "GUID:5a5a85170ae74fe7b1fbc680b36b7122",
         "GUID:62ced99b048af7f4d8dfe4bed8373d76",
         "GUID:d178ac4b10764814c8ae876ce6354d19",
-        "GUID:466d4cb32fd66ef4f99747d4eb7191d9",
-        "GUID:3a48074f337050d4c987242d92d466b6"
+        "GUID:466d4cb32fd66ef4f99747d4eb7191d9"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

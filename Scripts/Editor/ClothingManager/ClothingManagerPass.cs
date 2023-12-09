@@ -5,10 +5,10 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 using nadena.dev.ndmf;
+using UnityEditor.Animations;
 using UnityEngine.Animations;
-using VF.Builder;
-using VF.Utils;
-using VF.Utils.Controller;
+using VRC.SDK3.Avatars.Components;
+using VRC.SDKBase;
 
 namespace org.Tayou.AmityEdits {
     
@@ -24,21 +24,28 @@ namespace org.Tayou.AmityEdits {
         }
         
         public void Process() {
-            /*var avatarDescriptor = _buildContext.AvatarDescriptor;
+            Debug.Log("The Clothing Manager pass is running");
+            var avatarDescriptor = _buildContext.AvatarDescriptor;
             ClothingItem[] clothingItemComponents = avatarDescriptor.GetComponentsInChildren<ClothingItem>(true);
             Outfit[] outfitComponents = avatarDescriptor.GetComponentsInChildren<Outfit>(true);
 
-            if (clothingItemComponents.Length == 0 || outfitComponents.Length == 0) return;
+            if (clothingItemComponents.Length == 0 || outfitComponents.Length == 0) {
+                Debug.Log("The Clothing Manager didn't find any components and is returning");
+                return;
+            }
+            
+            var fxController = (AnimatorController)avatarDescriptor.baseAnimationLayers.FirstOrDefault(animatorLayer =>
+                animatorLayer.type == VRCAvatarDescriptor.AnimLayerType.FX).animatorController;
 
-            ControllerManager fx = new AvatarManager().GetFx();
-            VFLayer driverLayer = fx.NewLayer("Clothing Driver");
-            VFLayer toggleLayer = fx.NewLayer("Clothing Toggles");
+            AnimatorControllerLayer driverLayer = fxController.NewLayer("Clothing Driver");
+            AnimatorControllerLayer toggleLayer = fxController.NewLayer("Clothing Toggles");
 
-            List<VFABool> parameters = new List<VFABool>();
+            List<AnimatorControllerParameter> parameters = new List<AnimatorControllerParameter>();
             
             // add parameters for each clothing item
             foreach (var clothingItem in clothingItemComponents) {
-                clothingItem.parameter = fx.NewBool($"{PARAMETER_PREFIX}/{clothingItem.name}", true, true, false, true);
+                clothingItem.ParameterReference = fxController.NewParameter($"{PARAMETER_PREFIX}/{clothingItem.name}", AnimatorControllerParameterType.Float);
+                parameters.Add(clothingItem.ParameterReference);
             }
 
             // generate animations for each clothing item
@@ -50,28 +57,41 @@ namespace org.Tayou.AmityEdits {
             
             // generate Clothing Item States and Parameter Drivers
             foreach (var clothingItem in clothingItemComponents) {
-                var state = driverLayer.NewState(clothingItem.name).Drives(clothingItem.parameter, true);
-                state.TransitionsFromAny();
+                AnimatorState state = driverLayer.NewState(clothingItem.name);
+                state.Drives(clothingItem.ParameterReference, 1);
+                //state.TransitionsFromAny();
 
                 foreach (var incompatibleItem in clothingItem.incompatibilities) {
-                    state.Drives(incompatibleItem.parameter, false);
+                    state.Drives(incompatibleItem.ParameterReference, 0);
                 }
             }
             
             // generate Direct BlendTree
-            foreach (var clothingItem in clothingItemComponents) {
-                // this all needs to be in a big Direct BlendTree, not sure how to do that with VF logic
-                toggleLayer.NewState(clothingItem.name).WithAnimation(clothingItem.animation).TransitionsFromAny();
+            var directTreeState = toggleLayer.NewDirectTreeState(out var directBlendTree, fxController, "Clothing Toggles");
+
+            foreach (var clothingItem in clothingItemComponents) 
+            {
+                // Add motion based on clothing item's animation
+                var motion = new BlendTree {
+                    name = clothingItem.name
+                };
+                motion.AddChild(clothingItem.animation);
+                AssetDatabase.AddObjectToAsset(motion, directBlendTree);
+                directBlendTree.AddChild(motion, clothingItem.ParameterReference.defaultFloat); 
             }
+            AssetDatabase.SaveAssets();
             
             // generate Outfit States
             foreach (var outfit in outfitComponents) {
                 var state = driverLayer.NewState(outfit.name);
 
                 foreach (var clothingItem in outfit.ClothingItems) {
-                    state.Drives(clothingItem.parameter, true);
+                    state.Drives(clothingItem.ParameterReference, 1);
                 }
-            }*/
+            }
+            
+            Debug.Log("The Clothing Manager pass has finished. \n" +
+                      $"Created {parameters.Count} parameters for clothing items");
         }
     }
 }
