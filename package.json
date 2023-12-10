@@ -12,7 +12,6 @@
   "url": "https://github.com/TayouVR/VRCFuryExtensions.git",
   "type": "tool",
   "dependencies": {
-    "com.vrcfury.vrcfury": "1.126.0",
     "nadena.dev.ndmf": "1.2.2"
   }
 }
