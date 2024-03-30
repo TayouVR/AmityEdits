@@ -72,6 +72,7 @@ namespace org.Tayou.AmityEdits {
             sequence = InPhase(BuildPhase.Generating);
             sequence.Run("Run Item Setups", ctx => new ItemSetupPass(ctx).Process());
             sequence.Run("Run Clothing Manager", ctx => new ClothingManagerPass(ctx).Process());
+            sequence.Run("Run SPS Plug Patcher", ctx => new SPSPlugPass(ctx).Process());
             
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
