@@ -23,7 +23,7 @@ namespace org.Tayou.AmityEdits {
     [Serializable]
     [AddComponentMenu("Tayou Tools/ClothingManager Outfit")]
     public class Outfit : AmityBaseComponent {
-        public string name;
+        public new string name;
         public List<ClothingItem> ClothingItems;
     }
 }

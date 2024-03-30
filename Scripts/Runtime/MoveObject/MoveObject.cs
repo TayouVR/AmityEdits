@@ -15,15 +15,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 using UnityEngine;
-using VRC.SDKBase;
 
 namespace org.Tayou.AmityEdits {
-    public abstract class AmityBaseComponent : MonoBehaviour, IEditorOnly {
+    
+    /**
+     * This component moves the transform in `objectToMove` into the transform `targetObject`
+     */
+    public class MoveObject : AmityBaseComponent {
 
-        protected void OnEnable() {
-            // Do nothing, this is just for unity to give me the toggle
-        }
-        
+        // The object to be moved
+        public Transform objectToMove;
+
+        // The target object to which `objectToMove` has to be moved
+        public Transform targetObject;
     }
 }

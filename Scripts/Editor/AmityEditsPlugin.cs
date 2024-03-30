@@ -75,6 +75,7 @@ namespace org.Tayou.AmityEdits {
             
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
+            sequence.Run("Run Move Object", ctx => new MoveObjectPass(ctx).Process());
             
             sequence = InPhase(BuildPhase.Optimizing);
             // Do Optimizations here
