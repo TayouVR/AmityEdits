@@ -16,37 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
-using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(ItemSetup), true)]
     public class ItemSetupEditor : AmityBaseEditor {
-        private ReorderableList _targets;
         private ItemSetup _itemSetup;
-
-        public ReorderableList Targets =>
-            _targets ?? (_targets = new ReorderableList(_itemSetup.targets, typeof(ItemData)) {
-                drawHeaderCallback = DrawHeaderCallback,
-                drawElementCallback = DrawElementCallback,
-                elementHeightCallback = ElementHeightCallback,
-                onAddCallback = list => _itemSetup.targets.Add(new ItemData())
-            });
-
-        private float ElementHeightCallback(int index) {
-            float height = 0;
-            height += EditorGUIUtility.singleLineHeight * 1.25f; // Transform Field
-            ItemData itemSetupTarget = _itemSetup.targets[index];
-            if (itemSetupTarget == null) return height;
-            
-            height += EditorGUIUtility.singleLineHeight * 1.25f; // position
-            height += EditorGUIUtility.singleLineHeight * 1.25f; // rotation
-            height += EditorGUIUtility.singleLineHeight * 1.25f; // button
-            return height;
-        }
 
         /*private void OnSceneGUI() {
             for (var i = 0; i < _itemSetup.targets.Count; i++) {
@@ -82,56 +61,10 @@ namespace org.Tayou.AmityEdits {
             }
         }
 
-        private void DrawElementCallback(Rect rect, int index, bool isactive, bool isfocused) {
-            rect.height = EditorGUIUtility.singleLineHeight;
-            ItemData itemSetupTarget = _itemSetup.targets[index];
-            
-            _itemSetup.targets[index].transform = (Transform)EditorGUI.ObjectField(rect, new GUIContent($"Target {index}"), _itemSetup.targets[index].transform, typeof(Transform), true);
-            //HierarchyTransform.OnInspectorGUI(serializedObject.FindProperty("targets").GetArrayElementAtIndex(index).FindPropertyRelative("path").serializedObject);
-            
-            if (itemSetupTarget != null) {
-                EditorGUI.BeginChangeCheck();
-                rect.y += EditorGUIUtility.singleLineHeight * 1.25f;
-                var positionOffset = EditorGUI.Vector3Field(rect, "Position Offset", itemSetupTarget.position);
-                rect.y += EditorGUIUtility.singleLineHeight * 1.25f;
-                var rotationOffset = EditorGUI.Vector3Field(rect, "Rotation Offset", itemSetupTarget.rotation.eulerAngles);
-                rect.y += EditorGUIUtility.singleLineHeight * 1.25f;
-                if (EditorGUI.EndChangeCheck()) {
-                    Undo.RecordObject(target, $"Changed Item Target Offsets");
-                    _itemSetup.transform.position = itemSetupTarget.transform.position + positionOffset;
-                    
-                    itemSetupTarget.position = positionOffset;
-                    itemSetupTarget.EulerAngles = rotationOffset;
-                    // don't actually assign rotation, quaternions and euler angles are a pain to deal with....
-                    //itemSetupTarget.rotationOffset = rotationOffset;
-                }
-                
-                if (_itemSetup.itemPreviewIndex == index) {
-                    SaveCurrentTransformToOffsets();
-                    if (GUI.Button(rect, "Stop Preview")) {
-                        EditorUtility.SetDirty(_itemSetup);
-                        _itemSetup.itemPreviewIndex = -1;
-                        Undo.RecordObject(target, $"Took Item Target #{index} out of Preview mode");
-                    }
-                } else {
-                    if (GUI.Button(rect, "Preview")) {
-                        EditorUtility.SetDirty(_itemSetup);
-                        _itemSetup.itemPreviewIndex = index;
-                        Undo.RecordObject(target, $"Set Item Target #{index} in Preview mode");
-                        _itemSetup.transform.position = itemSetupTarget.transform.position + positionOffset;
-                        
-                        // this causes deep decimal inaccuracies
-                        //_itemSetup.transform.rotation = Quaternion.Euler(itemSetupTarget.transform.rotation.eulerAngles + rotationOffset);
-                        //_itemSetup.gameObject.SetActive(true);
-                    }
-                }
-            }
-        }
-
         /// <summary>
         /// Saves the current Transform (position & rotation) to the corresponding fields based on the preview index (-1 for rest state)
         /// </summary>
-        public void SaveCurrentTransformToOffsets() {
+        private void SaveCurrentTransformToOffsets() {
             Transform itemSetupTrans = _itemSetup.transform;
             if (_itemSetup.itemPreviewIndex == -1) {
                 _itemSetup.restPosition = itemSetupTrans.position;
@@ -142,10 +75,6 @@ namespace org.Tayou.AmityEdits {
             }
         }
         
-        private void DrawHeaderCallback(Rect rect) {
-            EditorGUI.LabelField(rect, "Targets");
-        }
-        
         private void OnEnable() {
             _itemSetup = (ItemSetup) target;
             //EditorApplication.update += Update; // handle any continuous updates
@@ -153,27 +82,87 @@ namespace org.Tayou.AmityEdits {
 
         public override VisualElement CreateInspector() {
             // Each editor window contains a root VisualElement object
-            VisualElement root = new VisualElement();
-            
-            root.Add(new PropertyField(serializedObject.FindProperty("itemDefaultActiveState"), "Enabled at rest"));
-            
-            root.Add(new Label("Reset Transform"));
-            root.Add(new PropertyField(serializedObject.FindProperty("restPosition")));
-            root.Add(new PropertyField(serializedObject.FindProperty("restRotation")));
+            // Import UXML
+            VisualElement root;
+            VisualTreeAsset visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(AssetDatabase.GUIDToAssetPath("7cf2c731f759d7d4390271437e0b08b7"));
+            if (visualTree) {
+                root = visualTree.CloneTree();
+            } else {
+                root = new VisualElement();
+            }
+
+            root.Q<PropertyField>("itemDefaultActiveState")
+                .BindProperty(serializedObject.FindProperty("itemDefaultActiveState"));
+            root.Q<PropertyField>("restPosition")
+                .BindProperty(serializedObject.FindProperty("restPosition"));
+            root.Q<PropertyField>("restRotation")
+                .BindProperty(serializedObject.FindProperty("restRotation"));
             
             // Default Inspector is ugly af, need to find a way to do (reorderable) lists, which don't suck ass
             //root.Add(new PropertyField(serializedObject.FindProperty("targets")));
 
-            // Import UXML
-            VisualTreeAsset visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(AssetDatabase.GUIDToAssetPath("7cf2c731f759d7d4390271437e0b08b7"));
-            if (visualTree) {
-                VisualElement labelFromUXML = visualTree.CloneTree();
-                root.Add(labelFromUXML);
-            }
+            var targetsList = root.Q<ListView>("targetsList");
+            targetsList.BindProperty(serializedObject.FindProperty("targets"));
+            targetsList.makeItem = MakeItem;
+            targetsList.bindItem = BindItem;
 
-            root.Add(new IMGUIContainer(() => Targets.DoLayoutList()));
+            //root.Add(new IMGUIContainer(() => Targets.DoLayoutList()));
             
             return root;
+        }
+
+        private void BindItem(VisualElement itemRoot, int index) {
+            SerializedObject targetsObj = serializedObject.FindProperty("targets").GetArrayElementAtIndex(index).serializedObject;
+            
+            //ItemData itemSetupTarget = targetsObj.targetObject as ItemData;
+
+            var transformField = itemRoot.Q<PropertyField>("transform");
+            transformField.BindProperty(targetsObj.FindProperty("transform"));
+            transformField.label = $"Target {index}";
+            //HierarchyTransform.OnInspectorGUI(serializedObject.FindProperty("targets").GetArrayElementAtIndex(index).FindPropertyRelative("path").serializedObject);
+
+            if (targetsObj.targetObject as object == null) return;
+            
+            itemRoot.Q<PropertyField>("positionOffset").BindProperty(targetsObj.FindProperty("position"));
+            itemRoot.Q<PropertyField>("rotationOffset").BindProperty(targetsObj.FindProperty("rotation"));
+
+            var previewButton = itemRoot.Q<Button>("previewButton");
+            previewButton.text = _itemSetup.itemPreviewIndex == index ? "Preview" : "Stop Preview";
+
+            previewButton.clicked -= null;
+            previewButton.clicked += () => PreviewButtonOnClicked(index);
+            serializedObject.ApplyModifiedProperties();
+        }
+
+        private void PreviewButtonOnClicked(int index) {
+            if (_itemSetup.itemPreviewIndex == index) {
+                SaveCurrentTransformToOffsets();
+                //EditorUtility.SetDirty(_itemSetup);
+                _itemSetup.itemPreviewIndex = -1;
+                //Undo.RecordObject(target, $"Took Item Target #{index} out of Preview mode");
+                _itemSetup.gameObject.SetActive(_itemSetup.itemDefaultActiveState);
+            } else {
+                //EditorUtility.SetDirty(_itemSetup);
+                _itemSetup.itemPreviewIndex = index;
+                //Undo.RecordObject(target, $"Set Item Target #{index} in Preview mode");
+                //_itemSetup.transform.position = itemSetupTarget.transform.position + itemSetupTarget.position;
+                    
+                //_itemSetup.transform.rotation = itemSetupTarget.transform.rotation * itemSetupTarget.rotation;
+                _itemSetup.gameObject.SetActive(true);
+            }
+        }
+
+        private VisualElement MakeItem() {
+            VisualElement itemRoot = new VisualElement();
+
+            itemRoot.Add(new PropertyField { label = "Target", name = "transform", style = { height = 20}});
+            //HierarchyTransform.OnInspectorGUI(serializedObject.FindProperty("targets").GetArrayElementAtIndex(index).FindPropertyRelative("path").serializedObject);
+
+            itemRoot.Add(new PropertyField { label = "Position Offset", name = "positionOffset" });
+            itemRoot.Add(new PropertyField { label = "Rotation Offset", name = "rotationOffset" });
+
+            itemRoot.Add(new Button { text = "Preview", name = "previewButton" });
+            return itemRoot;
         }
     }
 }

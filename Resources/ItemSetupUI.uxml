@@ -1,5 +1,8 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
-    <ui:Label text="Hello World! From UXML" />
-    <uie:PropertyField view-data-key="itemDefaultActiveState" label="Enabled at rest" />
-    <uie:PropertyField view-data-key="itemStaysActive" label="Keep Item Always Active" />
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <uie:PropertyField view-data-key="itemDefaultActiveState" label="Enabled at rest" name="itemDefaultActiveState" />
+    <uie:PropertyField view-data-key="itemStaysActive" label="Keep Item Always Active" name="itemStaysActive" />
+    <ui:Label text="Reset Transform" />
+    <uie:PropertyField view-data-key="restPosition" label="Rest Position" name="restPosition" />
+    <uie:PropertyField view-data-key="restRotation" label="Rest Rotation" name="restRotation" />
+    <ui:ListView name="targetsList" header-title="Targets" show-foldout-header="true" reorderable="true" show-border="true" virtualization-method="DynamicHeight" show-alternating-row-backgrounds="All" reorder-mode="Animated" show-add-remove-footer="true" />
 </ui:UXML>

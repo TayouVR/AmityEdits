@@ -28,8 +28,6 @@ namespace org.Tayou.AmityEdits {
         public HumanBodyBones humanBone;
         public string transformPath;
         public Transform transform;
-        
-        [SerializeField]
         public HierarchyTransform path = new HierarchyTransform();
         
         public Vector3 position;
