@@ -15,29 +15,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-using System;
+
+using System.Collections.Generic;
+using JetBrains.Annotations;
 using UnityEngine;
-using UnityEngine.Serialization;
-using Object = UnityEngine.Object;
 
 namespace org.Tayou.AmityEdits {
-    [Serializable]
-    public class ItemData {
+    
+    /**
+     * This component moves the transform in `objectToMove` into the transform `targetObject`
+     */
+    public class ReorderMenus : AmityBaseComponent {
 
-        // these are all used for the same purpose, some of these may be easier to deal with than others
-        public HumanBodyBones humanBone;
-        public string transformPath;
-        public Transform transform;
-        
-        [SerializeField]
-        public HierarchyTransform path = new HierarchyTransform();
-        
-        public Vector3 position;
-        public Quaternion rotation;
+        public List<MenuOperation> MenuOperations = new();
+    }
 
-        public Vector3 EulerAngles {
-            get => rotation.eulerAngles;
-            set => rotation = Quaternion.Euler(value);
-        }
+    public class MenuOperation {
+        [CanBeNull] public MenuLocation SourceMenu;
+        [CanBeNull] public MenuLocation TargetMenu;
+    }
+
+    public class MenuLocation {
+        public string Path;
+        public string AssetID;
+        public AmityBaseComponent AmityMenuSource;
     }
 }

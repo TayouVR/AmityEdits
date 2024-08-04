@@ -15,7 +15,7 @@ namespace org.Tayou.AmityEdits {
     public static class SpsPatcher {
         private const string HashBuster = "9";
         
-        public static void Patch(Material mat, BuildContext ctx, bool keepImports) {
+        public static void Patch(Material mat, BuildContext ctx, bool keepImports, ShaderPathSelection selection) {
             if (!mat.shader) return;
             try {
                 var renderQueue = mat.renderQueue;
@@ -23,8 +23,9 @@ namespace org.Tayou.AmityEdits {
                 mat.renderQueue = renderQueue;
             } catch (Exception e) {
                 throw new Exception(
-                    "Failed to patch shader with SPS. Report this on the VRCFury discord. Maybe this shader isn't supported yet.\n\n" +
-                    mat.shader.name + "\n\n" + e.Message, e);
+                    $"Failed to patch shader with {selection.ToString()}. " +
+                    $"Report this on the Amity Github issues. " +
+                    $"Maybe this shader isn't supported yet.\n\n{mat.shader.name}\n\n{e.Message}", e);
             }
         }
 
@@ -36,7 +37,7 @@ namespace org.Tayou.AmityEdits {
             var shader = mat.shader;
             var newShader = PatchUnsafe(shader, ctx, keepImports);
             mat.shader = newShader.shader;
-            ReflectionUtils.InvokeMethod(mat, "MarkDirty");
+            AssetDatabase.AddObjectToAsset(newShader.shader, ctx.AssetContainer);
         }
 
         public class PatchResult {
@@ -158,7 +159,6 @@ namespace org.Tayou.AmityEdits {
             }
 
             var assetContainerPath = Path.GetDirectoryName(AssetDatabase.GetAssetPath(ctx.AssetContainer));
-            Debug.Log(assetContainerPath);
             var newPathDir = $"{assetContainerPath}/SPS";
             var newPath = $"{newPathDir}/{hash}.shader";
             AssetDatabaseHelper.WithAssetEditing(() => {

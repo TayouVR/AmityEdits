@@ -24,7 +24,7 @@ namespace org.Tayou.AmityEdits {
     [AddComponentMenu("Tayou Tools/Item Setup")]
     public class ItemSetup : AmityBaseComponent {
         
-        public List<ItemData> targets = new List<ItemData>();
+        public List<ItemData> targets = new();
         public bool itemDefaultActiveState;
         public int itemPreviewIndex = -1;
 

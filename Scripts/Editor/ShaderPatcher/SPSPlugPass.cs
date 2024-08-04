@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using nadena.dev.ndmf;
+using org.Tayou.AmityEdits.ShaderPatcher;
 using UnityEditor.Animations;
 
 namespace org.Tayou.AmityEdits {
@@ -45,7 +46,17 @@ namespace org.Tayou.AmityEdits {
                 }
 
                 foreach (var material in plugObject.renderer.sharedMaterials) {
-                    SpsPatcher.Patch(material, _buildContext, true);
+                    SpsConfigurer.ConfigureSpsMaterial(
+                        _buildContext, 
+                        plugObject.renderer, 
+                        material,
+                        1, 
+                        new Texture2D(1, 1), 
+                        plugObject, 
+                        plugObject.gameObject, 
+                        new List<string>()
+                    );
+                    SpsPatcher.Patch(material, _buildContext, true, plugObject.shaderToPatch);
                 }
             }
         }
