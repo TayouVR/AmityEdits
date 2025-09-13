@@ -1,6 +1,6 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
- *  Copyright (C) 2023 Tayou <git@tayou.org>
+ *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,15 +21,28 @@ using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
     [Serializable]
-    [AddComponentMenu("Tayou Tools/ClothingManager Item")]
+    [AddComponentMenu("Amity Edits/ClothingManager Item")]
     public class ClothingItem : AmityBaseComponent {
         public new string name;
-        //public VF.Model.State action; // TODO: implement UI for it somehow, or re-implement entire state/action
-        //public GameObject gameObject;
+        public ItemActionMethod actionMethod = ItemActionMethod.Parameter;
+        
+        // actions
+        public GameObject objectToToggle;
+        public string parameterName;
         public new AnimationClip animation;
+        
         public List<ClothingItem> incompatibilities;
+        
 #if UNITY_EDITOR
         public AnimatorControllerParameter ParameterReference;
 #endif
     }
+
+    public enum ItemActionMethod {
+        Parameter,
+        ObjectToggle,
+        Animation,
+        AmityAction,
+    }
+    
 }

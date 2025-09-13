@@ -21,7 +21,7 @@ using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
     
-    [AddComponentMenu("Tayou Tools/Item Setup")]
+    [AddComponentMenu("Amity Edits/Item Setup")]
     public class ItemSetup : AmityBaseComponent {
         
         public List<ItemData> targets = new();
