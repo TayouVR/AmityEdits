@@ -22,7 +22,7 @@ using UnityEngine;
 namespace org.Tayou.AmityEdits {
     public class SPSPlug : AmityBaseComponent {
         public Renderer renderer;
-        public ShaderPathSelection shaderToPatch;
+        public ShaderPatchSelection shaderToPatch;
 
         public ShaderPatchOptionBase shaderPatchOption {
             get {
@@ -51,22 +51,23 @@ namespace org.Tayou.AmityEdits {
     }
 }
 
-public enum ShaderPathSelection {
+public enum ShaderPatchSelection {
     AmitySPS,
     VRCFurySPS,
     RalivDPS,
+    PoiTPS,
 }
 
 public abstract class ShaderPatchOptionBase {
     public static string name;
-    public static ShaderPathSelection type;
+    public static ShaderPatchSelection type;
     public abstract Shader PatchShader(Shader shader);
 
 }
 
 public class ShaderPatchOptionAmity : ShaderPatchOptionBase {
     public static string name = "Amity SPS";
-    public static ShaderPathSelection type = ShaderPathSelection.AmitySPS;
+    public static ShaderPatchSelection type = ShaderPatchSelection.AmitySPS;
 
     public override Shader PatchShader(Shader shader) {
         return shader;
@@ -75,7 +76,7 @@ public class ShaderPatchOptionAmity : ShaderPatchOptionBase {
 
 public class ShaderPatchOptionVRCFury : ShaderPatchOptionBase {
     public static string name = "VRCFury SPS";
-    public static ShaderPathSelection type = ShaderPathSelection.VRCFurySPS;
+    public static ShaderPatchSelection type = ShaderPatchSelection.VRCFurySPS;
 
     public override Shader PatchShader(Shader shader) {
         return shader;
@@ -84,7 +85,16 @@ public class ShaderPatchOptionVRCFury : ShaderPatchOptionBase {
 
 public class ShaderPatchOptionRalivDPS : ShaderPatchOptionBase {
     public static string name = "Raliv DPS";
-    public static ShaderPathSelection type = ShaderPathSelection.RalivDPS;
+    public static ShaderPatchSelection type = ShaderPatchSelection.RalivDPS;
+
+    public override Shader PatchShader(Shader shader) {
+        return shader;
+    }
+}
+
+public class ShaderPatchOptionPoiyomiTPS : ShaderPatchOptionBase {
+    public static string name = "Poiyomi TPS";
+    public static ShaderPatchSelection type = ShaderPatchSelection.PoiTPS;
 
     public override Shader PatchShader(Shader shader) {
         return shader;
@@ -93,15 +103,17 @@ public class ShaderPatchOptionRalivDPS : ShaderPatchOptionBase {
 
 public static class ShaderPathSelectionExtensions 
 {
-    public static string GetFolderAssetID(this ShaderPathSelection shaderPathSelection) 
+    public static string GetFolderAssetID(this ShaderPatchSelection shaderPatchSelection) 
     {
-        switch (shaderPathSelection) 
+        switch (shaderPatchSelection) 
         {
-            case ShaderPathSelection.AmitySPS:
+            case ShaderPatchSelection.AmitySPS:
                 return "6cf9adf85849489b97305dfeecc74768";
-            case ShaderPathSelection.VRCFurySPS:
+            case ShaderPatchSelection.VRCFurySPS:
                 return "6cf9adf85849489b97305dfeecc74768";
-            case ShaderPathSelection.RalivDPS:
+            case ShaderPatchSelection.RalivDPS:
+                return "6cf9adf85849489b97305dfeecc74768";
+            case ShaderPatchSelection.PoiTPS:
                 return "6cf9adf85849489b97305dfeecc74768";
             default:
                 return ""; // Choose a suitable default

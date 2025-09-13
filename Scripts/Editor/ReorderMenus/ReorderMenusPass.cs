@@ -17,7 +17,6 @@
  */
 using System.Collections.Generic;
 using System.Linq;
-using AnimatorAsCode.V1;
 using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;

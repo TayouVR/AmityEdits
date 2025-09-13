@@ -15,7 +15,7 @@ namespace org.Tayou.AmityEdits {
     public static class SpsPatcher {
         private const string HashBuster = "9";
         
-        public static void Patch(Material mat, BuildContext ctx, bool keepImports, ShaderPathSelection selection) {
+        public static void Patch(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection) {
             if (!mat.shader) return;
             try {
                 var renderQueue = mat.renderQueue;

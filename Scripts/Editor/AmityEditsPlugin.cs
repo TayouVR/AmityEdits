@@ -29,9 +29,7 @@ using UnityEngine;
 namespace org.Tayou.AmityEdits {
     public class AmityEditsPlugin : Plugin<AmityEditsPlugin> {
         
-        /// <summary>
         /// GUID for package.json
-        /// </summary>
         private const string PackageJsonGuid = "d8946230fdb0492db31311fd7566afd0";
         private static string version;
         
@@ -41,9 +39,7 @@ namespace org.Tayou.AmityEdits {
         public override string DisplayName => Name;
         
 
-        /// <summary>
-        /// Current version of VRCFury
-        /// </summary>
+        /// Current version of Amity Edits
         public static string Version {
             get {
                 if (string.IsNullOrEmpty(version)) {
@@ -58,9 +54,7 @@ namespace org.Tayou.AmityEdits {
             }
         }
         
-        /// <summary>
         /// Partial Implementation of the package manifest for deserialization
-        /// </summary>
         public class PackageManifestData {
             public string version;
         }

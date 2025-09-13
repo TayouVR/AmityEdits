@@ -17,7 +17,6 @@
  */
 using System.Collections.Generic;
 using System.Linq;
-using AnimatorAsCode.V1;
 using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;
@@ -40,23 +39,21 @@ namespace org.Tayou.AmityEdits {
          */
         private static void UpdateAnimationPath(AnimatorController ac, string oldPath, string newPath) {
             //Debug.Log(AssetDatabase.GetAssetPath(ac));
-            foreach (var layer in ac.layers) {
-                foreach (var state in layer.stateMachine.states) {
-                    var clips = state.state.motion as AnimationClip;
-                    if (clips == null) continue;
-
-                    var bindings = AnimationUtility.GetCurveBindings(clips);
-                    foreach (var binding in bindings.Where(b => b.path == oldPath)) {
-                        var curve = AnimationUtility.GetEditorCurve(clips, binding);
-                        // if needed, perform deep copy of keyframes - only potentially needed if altering values
-                        //curve.keys = curve.keys.Select(k => new Keyframe {time = k.time,value = k.value}).ToArray();
-
-                        // Save to local variable, modify and then add it back to the bindings
-                        var modifiedBinding = binding;
-                        modifiedBinding.path = newPath;
-                        AnimationUtility.SetEditorCurve(clips, binding, null);
-                        AnimationUtility.SetEditorCurve(clips, modifiedBinding, curve);
-                    }
+            var animationClips = ac.layers
+                .SelectMany(layer => layer.stateMachine.states)
+                .Select(state => state.state.motion as AnimationClip)
+                .Where(clip => clip != null);
+        
+            foreach (var clips in animationClips) {
+                var bindings = AnimationUtility.GetCurveBindings(clips)
+                    .Where(b => b.path == oldPath);
+                    
+                foreach (var binding in bindings) {
+                    var curve = AnimationUtility.GetEditorCurve(clips, binding);
+                    var modifiedBinding = binding;
+                    modifiedBinding.path = newPath;
+                    AnimationUtility.SetEditorCurve(clips, binding, null);
+                    AnimationUtility.SetEditorCurve(clips, modifiedBinding, curve);
                 }
             }
         }
