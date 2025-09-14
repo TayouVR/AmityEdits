@@ -1,6 +1,6 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
- *  Copyright (C) 2023 Tayou <git@tayou.org>
+ *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
  */
 
 using System;
+using System.Linq;
 using JetBrains.Annotations;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -50,8 +51,10 @@ namespace org.Tayou.AmityEdits {
         }
         
         public static AnimatorState NewState(this AnimatorControllerLayer layer, 
-            string name = "") {
+            string name = ""
+        ) {
             AnimatorState state = layer.stateMachine.AddState(name);
+            state.writeDefaultValues = true;
             return state;
         }
         
@@ -66,14 +69,18 @@ namespace org.Tayou.AmityEdits {
 
             var state = layer.NewState("Clothing Toggles");
             state.motion = blendTree;
+            state.writeDefaultValues = true;
             return state;
         }
         
         public static AnimatorState Drives(this AnimatorState state, 
             AnimatorControllerParameter parameter,
             float value) {
-            VRCAvatarParameterDriver driver = state.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-            driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter() {
+            VRCAvatarParameterDriver paramDriver = (VRCAvatarParameterDriver)state.behaviours.FirstOrDefault(stateBehaviour => stateBehaviour is VRCAvatarParameterDriver);
+            if (paramDriver == null) {
+                paramDriver = state.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+            }
+            paramDriver.parameters.Add(new VRC_AvatarParameterDriver.Parameter() {
                 name = parameter.name,
                 destParam = parameter, 
                 value = value,
@@ -122,6 +129,35 @@ namespace org.Tayou.AmityEdits {
             var id = skin.GetBlendShapeIndex(name);
             if (id < 0) throw new Exception("Blendshape does not exist");
             skin.SetBlendShapeWeight(id, value);
+        }
+        
+        // BlendTree
+        public static void AddChild(this BlendTree blendTree, Motion motion, string parameterName) => AddChild(blendTree, motion, Vector2.zero, 0.0f, parameterName);
+        public static void AddChild(this BlendTree blendTree, Motion motion, Vector2 position, string parameterName) => AddChild(blendTree, motion, position, 0.0f, parameterName);
+        public static void AddChild(this BlendTree blendTree, Motion motion, float threshold, string parameterName) => AddChild(blendTree, motion, Vector2.zero, threshold, parameterName);
+        
+        public static void AddChild(this BlendTree blendTree, Motion motion, Vector2 position, float threshold, string parameterName) {
+            Undo.RecordObject(blendTree, "Added BlendTree Child");
+            ChildMotion[] children = blendTree.children;
+            ArrayUtility.Add<ChildMotion>(ref children, new ChildMotion()
+            {
+                timeScale = 1f,
+                motion = motion,
+                position = position,
+                threshold = threshold,
+                directBlendParameter = parameterName
+            });
+            blendTree.children = children;
+        }
+        
+        public static string GetHierarchyPath(this Transform transform, Transform relativeTransform = null) {
+            string hierarchyPath = transform.name;
+            while ((UnityEngine.Object) transform.parent != (UnityEngine.Object) null && (UnityEngine.Object) transform.parent != (UnityEngine.Object) relativeTransform)
+            {
+                transform = transform.parent;
+                hierarchyPath = $"{transform.name}/{hierarchyPath}";
+            }
+            return hierarchyPath;
         }
     }
 }

@@ -39,27 +39,33 @@ namespace org.Tayou.AmityEdits {
             
             // Properties
             var nameProp = serializedObject.FindProperty("name");
+            var defaultStateProp = serializedObject.FindProperty("defaultState");
             var actionProp = serializedObject.FindProperty("actionMethod");
             var parameterNameProp = serializedObject.FindProperty("parameterName");
             var objectToToggleProp = serializedObject.FindProperty("objectToToggle");
-            var animationProp = serializedObject.FindProperty("animation");
+            var onAnimationProp = serializedObject.FindProperty("onAnimation");
+            var offAnimationProp = serializedObject.FindProperty("offAnimation");
             var incompatibilitiesProp = serializedObject.FindProperty("incompatibilities");
             
             // Fields
             var nameField = new PropertyField(nameProp);
+            var defaultStateField = new PropertyField(defaultStateProp);
             var actionField = new PropertyField(actionProp);
             var parameterNameField = new PropertyField(parameterNameProp) { name = "ParameterNameField" };
             var objectToToggleField = new PropertyField(objectToToggleProp) { name = "ObjectToToggleField" };
-            var animationField = new PropertyField(animationProp) { name = "AnimationField" };
+            var onAnimationField = new PropertyField(onAnimationProp) { name = "OnAnimationField" };
+            var offAnimationField = new PropertyField(offAnimationProp) { name = "OffAnimationField" };
             var amityActionInfo = new Label("This feature is not yet implemented.") { name = "AmityActionInfo" };
             // var amityActionInfo = new PropertyField(serializedObject.FindProperty("amityAction")) { name = "AmityActionInfo" };
             var incompatibilitiesField = new PropertyField(incompatibilitiesProp);
             
             root.Add(nameField);
+            root.Add(defaultStateField);
             root.Add(actionField);
             root.Add(parameterNameField);
             root.Add(objectToToggleField);
-            root.Add(animationField);
+            root.Add(onAnimationField);
+            root.Add(offAnimationField);
             root.Add(amityActionInfo);
             root.Add(incompatibilitiesField);
 
@@ -73,7 +79,8 @@ namespace org.Tayou.AmityEdits {
                 // Hide all first
                 parameterNameField.style.display = DisplayStyle.None;
                 objectToToggleField.style.display = DisplayStyle.None;
-                animationField.style.display = DisplayStyle.None;
+                onAnimationField.style.display = DisplayStyle.None;
+                offAnimationField.style.display = DisplayStyle.None;
                 amityActionInfo.style.display = DisplayStyle.None;
 
                 // Show the ones relevant to the current selection
@@ -85,7 +92,8 @@ namespace org.Tayou.AmityEdits {
                         objectToToggleField.style.display = DisplayStyle.Flex;
                         break;
                     case ItemActionMethod.Animation:
-                        animationField.style.display = DisplayStyle.Flex;
+                        onAnimationField.style.display = DisplayStyle.Flex;
+                        offAnimationField.style.display = DisplayStyle.Flex;
                         break;
                     case ItemActionMethod.AmityAction:
                         amityActionInfo.style.display = DisplayStyle.Flex;

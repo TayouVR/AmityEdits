@@ -27,7 +27,7 @@ namespace org.Tayou.AmityEdits {
             VisualElement root = new VisualElement();
 
             root.Add(new PropertyField(serializedObject.FindProperty("name")));
-            root.Add(new PropertyField(serializedObject.FindProperty("ClothingItems")));
+            root.Add(new PropertyField(serializedObject.FindProperty("clothingItems")));
 
             return root;
         }

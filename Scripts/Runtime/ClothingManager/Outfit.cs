@@ -18,12 +18,20 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
+using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits {
     [Serializable]
     [AddComponentMenu("Amity Edits/ClothingManager Outfit")]
     public class Outfit : AmityBaseComponent {
         public new string name;
-        public List<ClothingItem> ClothingItems;
+        public List<ClothingItem> clothingItems;
+        
+#if UNITY_EDITOR
+        public AnimatorControllerParameter ParameterReference;
+        [NonSerialized]
+        public VRCExpressionParameters.Parameter VRChatParameterReference;
+#endif
     }
 }

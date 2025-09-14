@@ -18,23 +18,29 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits {
     [Serializable]
     [AddComponentMenu("Amity Edits/ClothingManager Item")]
     public class ClothingItem : AmityBaseComponent {
         public new string name;
+        public bool defaultState;
         public ItemActionMethod actionMethod = ItemActionMethod.Parameter;
         
         // actions
         public GameObject objectToToggle;
         public string parameterName;
-        public new AnimationClip animation;
+        public AnimationClip onAnimation;
+        public AnimationClip offAnimation;
         
         public List<ClothingItem> incompatibilities;
         
 #if UNITY_EDITOR
         public AnimatorControllerParameter ParameterReference;
+        public AnimatorControllerParameter ParameterShadowReference;
+        [NonSerialized]
+        public VRCExpressionParameters.Parameter VRChatParameterReference;
 #endif
     }
 
