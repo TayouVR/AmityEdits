@@ -71,8 +71,11 @@ namespace org.Tayou.AmityEdits {
             // empty animation clip for empty states
             _emptyClip = new AnimationClip();
 
-            AnimatorControllerLayer driverLayer = fxController.NewLayer("Clothing Driver");
-            AnimatorControllerLayer toggleLayer = fxController.NewLayer("Clothing Toggles");
+            AnimatorControllerLayer defaultStateLayer = fxController.NewLayer("Amity Default State");
+            var defaultResetState = defaultStateLayer.NewState("Reset State");
+            
+            AnimatorControllerLayer driverLayer = fxController.NewLayer("Amity Clothing Driver");
+            AnimatorControllerLayer toggleLayer = fxController.NewLayer("Amity Clothing Toggles");
             
             // generate Direct BlendTree
             var directTreeState = toggleLayer.NewDirectTreeState(out var directBlendTree, fxController, "Clothing Toggles");
@@ -127,10 +130,10 @@ namespace org.Tayou.AmityEdits {
                 CreateMotionForClothingItem(clothingItem, directBlendTree);
                 
                 // build menus
-                BuildMenu(clothingItem, clothingItemMenu);
+                AddMenuItem(clothingItem, clothingItemMenu);
             }
             
-            AssetDatabase.SaveAssets();
+            var restAnimation = BuildDefaultRestStateAnimation(clothingItemComponents, defaultResetState);
             
             // generate Outfit States
             foreach (var outfit in outfitComponents) {
@@ -151,11 +154,13 @@ namespace org.Tayou.AmityEdits {
                         state.Drives(incompatibleItem.ParameterReference, 0);
                     }
                 }
-                BuildMenu(outfit, outfitMenu);
+                AddMenuItem(outfit, outfitMenu);
             }
             
+            AssetDatabase.SaveAssets();
             Debug.Log("The Clothing Manager pass has finished. \n" +
-                      $"Created {clothingItemComponents.Length} parameters for clothing items");
+                      $"Created {clothingItemComponents.Length} parameters for clothing items and \n" +
+                      $"{outfitComponents.Length} parameters for outfits.");
         }
 
         private void GenerateParameter(ClothingItem clothingItem, AnimatorController fxController, VRCExpressionParameters vrcParameters) {
@@ -207,7 +212,7 @@ namespace org.Tayou.AmityEdits {
             return animatorParameter;
         }
 
-        private void BuildMenu(ClothingItem clothingItem, VRCExpressionsMenu parentMenu) {
+        private void AddMenuItem(ClothingItem clothingItem, VRCExpressionsMenu parentMenu) {
             parentMenu.controls.Add(new VRCExpressionsMenu.Control() {
                 name = clothingItem.name,
                 type = VRCExpressionsMenu.Control.ControlType.Toggle,
@@ -218,8 +223,7 @@ namespace org.Tayou.AmityEdits {
             });
         }
 
-        private void BuildMenu(Outfit outfit, VRCExpressionsMenu parentMenu) {
-            Debug.Log("awaaaaa" + outfit.ParameterReference.name);
+        private void AddMenuItem(Outfit outfit, VRCExpressionsMenu parentMenu) {
             parentMenu.controls.Add(new VRCExpressionsMenu.Control() {
                 name = outfit.name,
                 type = VRCExpressionsMenu.Control.ControlType.Toggle,
@@ -268,20 +272,57 @@ namespace org.Tayou.AmityEdits {
         }
 
         private void CreateMotionForClothingItem(ClothingItem clothingItem, BlendTree directBlendTree) {
-            var offMotion = clothingItem.offAnimation ?? _emptyClip;
-            var motion = new BlendTree {
-                name = clothingItem.name,
-                blendParameter = clothingItem.ParameterReference.name,
-            };
-            motion.AddChild(offMotion, 0f);
-            motion.AddChild(clothingItem.onAnimation, 1f);
-            AssetDatabase.AddObjectToAsset(motion, directBlendTree);
-            directBlendTree.AddChild(motion, ONE_PARAMETER_NAME);
-            //directBlendTree.AddChild(clothingItem.animation, clothingItem.ParameterReference.name);
+            // var offMotion = clothingItem.offAnimation ?? _emptyClip;
+            // var motion = new BlendTree {
+            //     name = clothingItem.name,
+            //     blendParameter = clothingItem.ParameterReference.name,
+            // };
+            // motion.AddChild(offMotion, 0f);
+            // motion.AddChild(clothingItem.onAnimation, 1f);
+            // AssetDatabase.AddObjectToAsset(motion, directBlendTree);
+            // directBlendTree.AddChild(motion, ONE_PARAMETER_NAME);
+            directBlendTree.AddChild(clothingItem.onAnimation, clothingItem.ParameterReference.name);
+        }
+
+        private AnimationClip BuildDefaultRestStateAnimation(ClothingItem[] items, AnimatorState defaultState) {
+            AnimationClip restAnimation = new AnimationClip();
+            restAnimation.name = "Default Rest State";
+            
+            // Track already-added bindings to avoid duplicates and detect conflicts
+            var added = new Dictionary<EditorCurveBinding, (AnimationCurve curve, string sourceItem)>(new Utils.EditorCurveBindingComparer());
+
+            foreach (var clothingItem in items.Where(item => item.offAnimation != null)) {
+                Debug.LogWarning($"working on clothing item {clothingItem.name}");
+                AnimationClip offAnimation = clothingItem.offAnimation;
+                var bindings = AnimationUtility.GetCurveBindings(offAnimation);
+                foreach (var binding in bindings) {
+                    var curve = AnimationUtility.GetEditorCurve(offAnimation, binding);
+                    if (curve == null) continue;
+
+                    if (added.TryGetValue(binding, out var existing)) {
+                        if (!Utils.CurvesEqual(existing.curve, curve)) {
+                            Debug.LogWarning(
+                                $"Rest-state animation conflict for binding [{Utils.DescribeBinding(binding)}]. " +
+                                $"Existing from '{existing.sourceItem}': {Utils.CurveSummary(existing.curve)} | " +
+                                $"New from '{clothingItem.name}': {Utils.CurveSummary(curve)}"
+                            );
+                        }
+                        // Do not overwrite existing curve
+                        continue;
+                    }
+
+                    // First time we see this binding: add and remember its origin
+                    AnimationUtility.SetEditorCurve(restAnimation, binding, curve);
+                    added[binding] = (curve, clothingItem.name);
+                }
+            }
+            
+            AssetDatabase.AddObjectToAsset(restAnimation, _buildContext.AssetContainer);
+            defaultState.motion = restAnimation;
+            return restAnimation;
         }
 
         private void GenerateObjectToggle(ClothingItem clothingItem, GameObject baseAvatarObject) {
-            var go = clothingItem.gameObject;
             var path = clothingItem.transform.GetHierarchyPath(baseAvatarObject.transform);
 
             // Create ON animation

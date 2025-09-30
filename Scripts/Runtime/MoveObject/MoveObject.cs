@@ -1,6 +1,6 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
- *  Copyright (C) 2023 Tayou <git@tayou.org>
+ *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using System;
 using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
@@ -23,6 +24,8 @@ namespace org.Tayou.AmityEdits {
     /**
      * This component moves the transform in `objectToMove` into the transform `targetObject`
      */
+    [Serializable]
+    [AddComponentMenu("Amity Edits/Move Object")]
     public class MoveObject : AmityBaseComponent {
 
         // The object to be moved
