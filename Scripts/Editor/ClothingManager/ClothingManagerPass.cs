@@ -23,6 +23,7 @@ using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;
 using nadena.dev.ndmf.vrchat;
+using org.Tayou.AmityEdits.EditorUtils;
 using UnityEditor.Animations;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Avatars.ScriptableObjects;
@@ -180,19 +181,7 @@ namespace org.Tayou.AmityEdits {
         }
 
         private VRCExpressionParameters.Parameter CreateVrcParameter(string name, VRCExpressionParameters vrcParameters, float defaultValue = 0f) {
-            var vrcParameter = vrcParameters.FindParameter(name);
-            if (vrcParameter == null) {
-                vrcParameter = new VRCExpressionParameters.Parameter() {
-                    name = name,
-                    valueType = VRCExpressionParameters.ValueType.Bool,
-                    networkSynced = true,
-                    defaultValue = defaultValue,
-                };
-                var params1 = vrcParameters.parameters.ToList();
-                params1.Add(vrcParameter);
-                vrcParameters.parameters = params1.ToArray();
-            }
-            return vrcParameter;
+            return AmityMenuUtils.CreateOrGetVRCParameter(vrcParameters, name, VRCExpressionParameters.ValueType.Bool, defaultValue);
         }
 
         private AnimatorControllerParameter CreateAnimatorParameter(string name, AnimatorController fxController, float defaultValue = 0f) {
@@ -291,9 +280,20 @@ namespace org.Tayou.AmityEdits {
             // Track already-added bindings to avoid duplicates and detect conflicts
             var added = new Dictionary<EditorCurveBinding, (AnimationCurve curve, string sourceItem)>(new Utils.EditorCurveBindingComparer());
 
-            foreach (var clothingItem in items.Where(item => item.offAnimation != null)) {
-                Debug.LogWarning($"working on clothing item {clothingItem.name}");
+            foreach (var clothingItem in items) {
+                Debug.Log($"[Amity] working on clothing item {clothingItem.name}");
                 AnimationClip offAnimation = clothingItem.offAnimation;
+                
+                // If no offAnimation exists but onAnimation does, generate one
+                if (offAnimation == null && clothingItem.onAnimation != null) {
+                    Debug.LogWarning($"Generating offAnimation for clothing item {clothingItem.name}");
+                    offAnimation = GenerateOffAnimationFromScene(clothingItem, _buildContext.AvatarRootObject);
+                    clothingItem.offAnimation = offAnimation;
+                    AssetDatabase.AddObjectToAsset(offAnimation, _buildContext.AssetContainer);
+                }
+                
+                if (offAnimation == null) continue;
+                
                 var bindings = AnimationUtility.GetCurveBindings(offAnimation);
                 foreach (var binding in bindings) {
                     var curve = AnimationUtility.GetEditorCurve(offAnimation, binding);
@@ -320,6 +320,124 @@ namespace org.Tayou.AmityEdits {
             AssetDatabase.AddObjectToAsset(restAnimation, _buildContext.AssetContainer);
             defaultState.motion = restAnimation;
             return restAnimation;
+        }
+
+        private AnimationClip GenerateOffAnimationFromScene(ClothingItem clothingItem, GameObject avatarRoot) {
+            var offAnimation = new AnimationClip();
+            offAnimation.name = $"off_{clothingItem.name}_generated";
+            
+            var onAnimation = clothingItem.onAnimation;
+            
+            // Get all bindings from the onAnimation
+            var bindings = AnimationUtility.GetCurveBindings(onAnimation);
+            var objectBindings = AnimationUtility.GetObjectReferenceCurveBindings(onAnimation);
+            
+            // Process float/vector/rotation curves
+            foreach (var binding in bindings) {
+                // Find the object being animated
+                var targetObject = FindObjectByPath(avatarRoot.transform, binding.path);
+                if (targetObject == null) {
+                    Debug.LogWarning($"Could not find object at path '{binding.path}' for binding in {clothingItem.name}");
+                    continue;
+                }
+                
+                // Get the current value from the scene
+                var currentValue = GetCurrentValue(targetObject, binding);
+                if (currentValue.HasValue) {
+                    var curve = new AnimationCurve();
+                    curve.AddKey(0f, currentValue.Value);
+                    AnimationUtility.SetEditorCurve(offAnimation, binding, curve);
+                } else {
+                    Debug.LogWarning($"Could not read current value for binding [{Utils.DescribeBinding(binding)}] in {clothingItem.name}");
+                }
+            }
+            
+            // Process object reference curves (like material swaps)
+            foreach (var binding in objectBindings) {
+                var targetObject = FindObjectByPath(avatarRoot.transform, binding.path);
+                if (targetObject == null) {
+                    Debug.LogWarning($"Could not find object at path '{binding.path}' for object binding in {clothingItem.name}");
+                    continue;
+                }
+                
+                var currentObjRef = GetCurrentObjectReference(targetObject, binding);
+                if (currentObjRef != null) {
+                    var keys = new[] { new ObjectReferenceKeyframe { time = 0f, value = currentObjRef } };
+                    AnimationUtility.SetObjectReferenceCurve(offAnimation, binding, keys);
+                }
+            }
+            
+            return offAnimation;
+        }
+
+        private Transform FindObjectByPath(Transform root, string path) {
+            if (string.IsNullOrEmpty(path)) return root;
+            return root.Find(path);
+        }
+
+        private float? GetCurrentValue(Transform target, EditorCurveBinding binding) {
+            // animations may be on gameObjects, not components. GameObject active state is handled here.
+            if (binding.type == typeof(GameObject) && binding.propertyName == "m_IsActive") {
+                return null;
+                // I'm not sure how I want to handle this.
+                // Optimally, I want to have this based on the onAnimation state, not the current scene value
+                return target.gameObject.activeSelf ? 1f : 0f;
+            }
+            
+            Component component = null;
+            try {
+                component = target.GetComponent(binding.type);
+            } catch (Exception e) {
+                Debug.LogError(e);
+                Debug.LogWarning($"Could not get component {binding.type} for binding [{Utils.DescribeBinding(binding)}] in {target.name}");
+            }
+            if (component == null) return null;
+            
+            var serializedObject = new SerializedObject(component);
+            var property = serializedObject.FindProperty(binding.propertyName);
+            
+            if (property == null) return null;
+            
+            switch (property.propertyType) {
+                case SerializedPropertyType.Float:
+                    return property.floatValue;
+                case SerializedPropertyType.Integer:
+                    return property.intValue;
+                case SerializedPropertyType.Boolean:
+                    return property.boolValue ? 1f : 0f;
+                case SerializedPropertyType.Enum:
+                    return property.enumValueIndex;
+                default:
+                    // For complex properties like vectors, we need to handle sub-properties
+                    if (binding.propertyName.Contains(".")) {
+                        return GetValueFromSubProperty(serializedObject, binding.propertyName);
+                    }
+                    return null;
+            }
+        }
+
+        private float? GetValueFromSubProperty(SerializedObject serializedObject, string propertyPath) {
+            var property = serializedObject.FindProperty(propertyPath);
+            if (property == null) return null;
+            
+            if (property.propertyType == SerializedPropertyType.Float) {
+                return property.floatValue;
+            }
+            return null;
+        }
+
+        private UnityEngine.Object GetCurrentObjectReference(Transform target, EditorCurveBinding binding) {
+            var component = target.GetComponent(binding.type);
+            if (component == null) return null;
+            
+            var serializedObject = new SerializedObject(component);
+            var property = serializedObject.FindProperty(binding.propertyName);
+            
+            if (property != null && property.propertyType == SerializedPropertyType.ObjectReference) {
+                return property.objectReferenceValue;
+            }
+            
+            return null;
         }
 
         private void GenerateObjectToggle(ClothingItem clothingItem, GameObject baseAvatarObject) {
