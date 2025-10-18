@@ -38,6 +38,7 @@ namespace org.Tayou.AmityEdits.MenuItem {
         public VRCExpressionsMenu.Control vrcMenuControl;
         
         // actions
+        [SerializeReference]
         public BaseAmityAction[] actions;
         
     }

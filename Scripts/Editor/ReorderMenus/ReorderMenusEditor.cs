@@ -43,17 +43,17 @@ namespace org.Tayou.AmityEdits {
             // Each editor window contains a root VisualElement object
             VisualElement root = new VisualElement();
 
-            MyTreeViewItem item = new MyTreeViewItem();
-            item.children.Add(new MyTreeViewItem());
-            item.children.Add(new MyTreeViewItem());
-            item.children.Add(new MyTreeViewItem());
-            MyTreeViewItem[] items = { item };
-
-            TreeView treeView = new TreeView();
-            treeView.reorderable = true;
-            treeView.bindItem = BindMenuItem;
-            treeView.viewController.itemsSource = items;
-            root.Add(treeView);
+            // MyTreeViewItem item = new MyTreeViewItem();
+            // item.children.Add(new MyTreeViewItem());
+            // item.children.Add(new MyTreeViewItem());
+            // item.children.Add(new MyTreeViewItem());
+            // MyTreeViewItem[] items = { item };
+            //
+            // TreeView treeView = new TreeView();
+            // treeView.reorderable = true;
+            // treeView.bindItem = BindMenuItem;
+            // treeView.viewController.itemsSource = items;
+            // root.Add(treeView);
             
             // Default Inspector is ugly af, need to find a way to do (reorderable) lists, which don't suck ass
             //root.Add(new PropertyField(serializedObject.FindProperty("targets")));
@@ -65,11 +65,13 @@ namespace org.Tayou.AmityEdits {
             //     root.Add(labelFromUXML);
             // }
             
+            root.Add(new PropertyField(serializedObject.FindProperty("MenuOperations")));
+            
             return root;
         }
 
-        private void BindMenuItem(VisualElement arg1, int arg2) {
-            arg1.Add(new Label("Test!!!"));
+        private void BindMenuItem(VisualElement parentelement, int arg2) {
+            parentelement.Add(new Label($"Test!!!, {arg2}"));
         }
     }
 

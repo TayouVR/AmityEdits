@@ -23,6 +23,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Avatars.ScriptableObjects;
 using VRC.SDKBase;
 
 namespace org.Tayou.AmityEdits {
@@ -158,6 +159,10 @@ namespace org.Tayou.AmityEdits {
                 hierarchyPath = $"{transform.name}/{hierarchyPath}";
             }
             return hierarchyPath;
+        }
+
+        public static void AddMenuControl(this VRCExpressionsMenu expressionsMenu, VRCExpressionsMenu.Control control) {
+            expressionsMenu.controls.Add(control);
         }
     }
 }

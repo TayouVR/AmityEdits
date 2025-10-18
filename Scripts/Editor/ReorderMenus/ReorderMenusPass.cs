@@ -20,7 +20,11 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;
+using nadena.dev.ndmf.vrchat;
 using UnityEditor.Animations;
+using org.Tayou.AmityEdits.EditorUtils;
+using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits {
     
@@ -32,61 +36,64 @@ namespace org.Tayou.AmityEdits {
             _buildContext = context;
         }
 
-        /**
-         * This method updates the animation path for a given AnimationClip.
-         * - 'oldPath' is the path we want to replace in the animation.
-         * - 'newPath' is the path we want to replace it with.
-         */
-        private static void UpdateAnimationPath(AnimatorController ac, string oldPath, string newPath) {
-            //Debug.Log(AssetDatabase.GetAssetPath(ac));
-            foreach (var layer in ac.layers) {
-                foreach (var state in layer.stateMachine.states) {
-                    var clips = state.state.motion as AnimationClip;
-                    if (clips == null) continue;
+        public void Process() {
+            var avatarDescriptor = _buildContext.VRChatAvatarDescriptor();
+            var rootMenu = avatarDescriptor.expressionsMenu;
+            var components = avatarDescriptor.GetComponentsInChildren<ReorderMenus>(true);
 
-                    var bindings = AnimationUtility.GetCurveBindings(clips);
-                    foreach (var binding in bindings.Where(b => b.path == oldPath)) {
-                        var curve = AnimationUtility.GetEditorCurve(clips, binding);
-                        // if needed, perform deep copy of keyframes - only potentially needed if altering values
-                        //curve.keys = curve.keys.Select(k => new Keyframe {time = k.time,value = k.value}).ToArray();
+            //if (components.Length == 0 || rootMenu == null) return;
 
-                        // Save to local variable, modify and then add it back to the bindings
-                        var modifiedBinding = binding;
-                        modifiedBinding.path = newPath;
-                        AnimationUtility.SetEditorCurve(clips, binding, null);
-                        AnimationUtility.SetEditorCurve(clips, modifiedBinding, curve);
-                    }
-                }
-            }
+            var menuOperations = components.SelectMany(a => a.MenuOperations);
+            // foreach (var menuOperation in menuOperations) {
+            //     // TODO: traverse menu tree and find target menu as well as parent.
+            //     //  make sure target menu isn't still referenced at original location, and insert at parent
+            //     var sourceMenu = GetSourceMenu(menuOperation.SourceMenu);
+            //     
+            //     var targetMenu = GetTargetMenu(menuOperation.TargetMenu, rootMenu);
+            //     
+            //     // TODO: use your brain
+            //     targetMenu.AddMenuControl(new VRCExpressionsMenu.Control() {
+            //         //name = menuOperation.Name,
+            //         type = VRCExpressionsMenu.Control.ControlType.SubMenu,
+            //         subMenu = sourceMenu,
+            //     });
+            //     
+            //     
+            // }
+            
+            // TODO: deduplicate "next page" menus
+            // TODO: make sure max menu size is respected (8 per page) 
+            
+            
+            GetVRCFFields(avatarDescriptor, out string vrcfNextText, out var vrcfNextIcon );
+            
+            
+            
         }
 
-        public void Process() {
-            var avatarDescriptor = _buildContext.AvatarDescriptor;
-            
-            var animatorControllers = new List<AnimatorController>();
-            animatorControllers.AddRange(avatarDescriptor.specialAnimationLayers
-                .Where(customAnimLayer => customAnimLayer.animatorController != null)
-                .Select(customAnimLayer => (AnimatorController)customAnimLayer.animatorController));
-            animatorControllers.AddRange(avatarDescriptor.baseAnimationLayers
-                .Where(customAnimLayer => customAnimLayer.animatorController != null)
-                .Select(customAnimLayer => (AnimatorController)customAnimLayer.animatorController));
+        private VRCExpressionsMenu GetTargetMenu(MenuLocation menuOperationTargetMenu, VRCExpressionsMenu rootMenu) {
+            throw new System.NotImplementedException();
+        }
 
-            var components =
-                avatarDescriptor.GetComponentsInChildren<MoveObject>(true);
+        private VRCExpressionsMenu GetSourceMenu(MenuLocation menuOperationSourceMenu) {
+            throw new System.NotImplementedException();
+        }
 
-            if (components.Length == 0) return;
-            
-            foreach (var moveObject in components) {
-                var oldPath =
-                    AnimationUtility.CalculateTransformPath(moveObject.objectToMove, _buildContext.AvatarRootTransform);
-                moveObject.objectToMove.SetParent(moveObject.targetObject);
-                var newPath =
-                    AnimationUtility.CalculateTransformPath(moveObject.objectToMove, _buildContext.AvatarRootTransform);
-
-                foreach (var animatorController in animatorControllers.Where(animatorController => animatorController != null)) {
-                    UpdateAnimationPath(animatorController, oldPath, newPath);
+        // Use VRCFuryFeatureUtils to look for OverrideMenuSettings feature on the avatar
+        private void GetVRCFFields(VRCAvatarDescriptor avatarDescriptor, out string vrcfNextText, out Texture2D vrcfNextIcon) {
+            var overrideMenuSettings = VRCFuryFeatureUtils.GetOverrideMenuSettingsModel(avatarDescriptor.gameObject, true);
+            if (overrideMenuSettings != null) {
+                if (VRCFuryFeatureUtils.TryReadOverrideMenuSettings(overrideMenuSettings, out vrcfNextText, out vrcfNextIcon)) {
+                    Debug.Log($"[Amity] VRCFury OverrideMenuSettings detected: nextText='{vrcfNextText}', nextIcon={(vrcfNextIcon != null ? vrcfNextIcon.name : "<none>")}");
+                } else {
+                    Debug.Log("[Amity] VRCFury OverrideMenuSettings detected but could not parse fields");
                 }
+            } else {
+                Debug.Log("[Amity] No VRCFury OverrideMenuSettings feature found on this avatar");
             }
+
+            vrcfNextText = "";
+            vrcfNextIcon = null;
         }
     }
 }

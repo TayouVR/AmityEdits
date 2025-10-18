@@ -19,6 +19,7 @@ using System;
 using System.IO;
 using nadena.dev.ndmf;
 using nadena.dev.ndmf.fluent;
+using org.Tayou.AmityEdits.MenuItem;
 using UnityEditor;
 using UnityEngine;
 
@@ -64,13 +65,16 @@ namespace org.Tayou.AmityEdits {
             // Do Resolving Operations here
             
             sequence = InPhase(BuildPhase.Generating);
-            sequence.Run("Run Item Setups", ctx => new ItemSetupPass(ctx).Process());
-            sequence.Run("Run Clothing Manager", ctx => new ClothingManagerPass(ctx).Process());
-            sequence.Run("Run SPS Plug Patcher", ctx => new SPSPlugPass(ctx).Process());
+            sequence.Run("Item Setups", ctx => new ItemSetupPass(ctx).Process());
+            sequence.Run("Clothing Manager", ctx => new ClothingManagerPass(ctx).Process());
+            sequence.Run("Menu Items", ctx => new MenuItemPass(ctx).Process());
+            sequence.Run("Amity Orifice Builder", ctx => new OrificePass(ctx).Process());
+            sequence.Run("Amity Plug Patcher", ctx => new SPSPlugPass(ctx).Process());
             
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
-            sequence.Run("Run Move Object", ctx => new MoveObjectPass(ctx).Process());
+            sequence.Run("Move Object", ctx => new MoveObjectPass(ctx).Process());
+            sequence.Run("Reorder Menus", ctx => new ReorderMenusPass(ctx).Process());
             
             sequence = InPhase(BuildPhase.Optimizing);
             // Do Optimizations here

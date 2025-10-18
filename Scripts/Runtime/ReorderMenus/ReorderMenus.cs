@@ -25,6 +25,7 @@ namespace org.Tayou.AmityEdits {
     /**
      * This component moves the transform in `objectToMove` into the transform `targetObject`
      */
+    [AddComponentMenu("Amity Edits/Reorder Menus")]
     public class ReorderMenus : AmityBaseComponent {
 
         public List<MenuOperation> MenuOperations = new();

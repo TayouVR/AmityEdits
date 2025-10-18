@@ -11,7 +11,8 @@
         "GUID:b906909fcc54f634db50f2cad0f988d9",
         "GUID:6e9c6119ac4eb334284fb7b4bc6d1f05",
         "GUID:3456780c4fb2d324ab9c633d6f1b0ddb",
-        "GUID:901e56b065a857d4483a77f8cae73588"
+        "GUID:901e56b065a857d4483a77f8cae73588",
+        "GUID:5a5a85170ae74fe7b1fbc680b36b7122"
     ],
     "includePlatforms": [
         "Editor"
@@ -22,6 +23,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.vrcfury.vrcfury",
+            "expression": "1.0",
+            "define": "VRCFURY"
+        }
+    ],
     "noEngineReferences": false
 }

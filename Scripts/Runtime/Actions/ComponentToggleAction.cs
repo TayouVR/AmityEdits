@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace org.Tayou.AmityEdits.Actions {
     [Serializable]
-    public class GameObjectToggleAction : BaseAmityAction {
-        public GameObject target;
-        public bool active;
+    public class ComponentToggleAction : BaseAmityAction {
+        public Behaviour component;
+        public bool enabled;
     }
 }
