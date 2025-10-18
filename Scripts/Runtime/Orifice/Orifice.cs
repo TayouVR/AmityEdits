@@ -1,6 +1,6 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
- *  Copyright (C) 2023 Tayou <git@tayou.org>
+ *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +23,31 @@ namespace org.Tayou.AmityEdits {
     /**
      * This component represents a DPS/TPS orifice or SPS Socket
      */
+    [AddComponentMenu("Amity Edits/Orifice")]
     public class Orifice : AmityBaseComponent {
 
-        // The object, where the orifice should be placed
+        /// The object, where the orifice should be placed
         public Transform targetObject;
-
-        public bool enableDeformation;
-        public bool enableToyContacts;
-
+        
         public string depthParameterName;
         public string penetratorWidthParameterName;
         public string penetratorLengthParameterName;
+
+        // animation - these properties may be animated.
+        public bool enableDeformation;
+        public bool enableToyContacts;
+        public ApsChannel channel;
+        public ApsRole role;
+    }
+
+    public enum ApsChannel {
+        DpsChannel0 = 0,
+        DpsChannel1 = 1,
+    }
+
+    public enum ApsRole {
+        Hole,
+        Ring,
+        ReversibleRing,
     }
 }

@@ -15,16 +15,39 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;
+using nadena.dev.ndmf.vrchat;
 using UnityEditor.Animations;
+using VRC.SDK3.Dynamics.Contact.Components;
 
 namespace org.Tayou.AmityEdits {
     
     public class OrificePass {
+        
+        // Channel 0
+        const float Ch0Regular = 0.41f;
+        const float Ch0Ring = 0.42f;
+        const float Ch0Normal = 0.45f;
+        const float Ch0Physics = 0.49f;
+        
+        // Channel 1
+        const float Ch1Regular = 0.43f;
+        const float Ch1Ring = 0.44f;
+        const float Ch1Normal = 0.46f;
+        const float Ch1Physics = 0.48f;
+
+        const string ContactSpsSocketFront = "SPSLL_Socket_Front";
+        const string ContactSpsSocketRoot = "SPSLL_Socket_Root";
+        const string ContactSpsSocketRing = "SPSLL_Socket_Ring";
+        const string ContactSpsSocketHole = "SPSLL_Socket_Hole";
+        const string ContactTpsOrificeRoot = "TPS_Orf_Root";
+        const string ContactTpsOrificeNorm = "TPS_Orf_Norm";
         
         private readonly BuildContext _buildContext;
 
@@ -32,61 +55,96 @@ namespace org.Tayou.AmityEdits {
             _buildContext = context;
         }
 
-        /**
-         * This method updates the animation path for a given AnimationClip.
-         * - 'oldPath' is the path we want to replace in the animation.
-         * - 'newPath' is the path we want to replace it with.
-         */
-        private static void UpdateAnimationPath(AnimatorController ac, string oldPath, string newPath) {
-            //Debug.Log(AssetDatabase.GetAssetPath(ac));
-            foreach (var layer in ac.layers) {
-                foreach (var state in layer.stateMachine.states) {
-                    var clips = state.state.motion as AnimationClip;
-                    if (clips == null) continue;
-
-                    var bindings = AnimationUtility.GetCurveBindings(clips);
-                    foreach (var binding in bindings.Where(b => b.path == oldPath)) {
-                        var curve = AnimationUtility.GetEditorCurve(clips, binding);
-                        // if needed, perform deep copy of keyframes - only potentially needed if altering values
-                        //curve.keys = curve.keys.Select(k => new Keyframe {time = k.time,value = k.value}).ToArray();
-
-                        // Save to local variable, modify and then add it back to the bindings
-                        var modifiedBinding = binding;
-                        modifiedBinding.path = newPath;
-                        AnimationUtility.SetEditorCurve(clips, binding, null);
-                        AnimationUtility.SetEditorCurve(clips, modifiedBinding, curve);
-                    }
-                }
-            }
-        }
-
         public void Process() {
-            var avatarDescriptor = _buildContext.AvatarDescriptor;
-            
-            var animatorControllers = new List<AnimatorController>();
-            animatorControllers.AddRange(avatarDescriptor.specialAnimationLayers
-                .Where(customAnimLayer => customAnimLayer.animatorController != null)
-                .Select(customAnimLayer => (AnimatorController)customAnimLayer.animatorController));
-            animatorControllers.AddRange(avatarDescriptor.baseAnimationLayers
-                .Where(customAnimLayer => customAnimLayer.animatorController != null)
-                .Select(customAnimLayer => (AnimatorController)customAnimLayer.animatorController));
-
-            var components =
-                avatarDescriptor.GetComponentsInChildren<MoveObject>(true);
+            var components = _buildContext.AvatarRootObject.GetComponentsInChildren<Orifice>(true);
+            Debug.Log($"orifice count: {components.Length}");
 
             if (components.Length == 0) return;
             
-            foreach (var moveObject in components) {
-                var oldPath =
-                    AnimationUtility.CalculateTransformPath(moveObject.objectToMove, _buildContext.AvatarRootTransform);
-                moveObject.objectToMove.SetParent(moveObject.targetObject);
-                var newPath =
-                    AnimationUtility.CalculateTransformPath(moveObject.objectToMove, _buildContext.AvatarRootTransform);
+            foreach (var orifice in components) {
+                Debug.Log($"orifice: {orifice.name}, target: {orifice.targetObject}, role: {orifice.role}, channel: {orifice.channel}, path: {orifice.gameObject.transform.GetHierarchyPath(_buildContext.AvatarRootObject.transform)}");
+                CreateOrificeInPrefab(orifice);
+            }
+        }
 
-                foreach (var animatorController in animatorControllers.Where(animatorController => animatorController != null)) {
-                    UpdateAnimationPath(animatorController, oldPath, newPath);
+        // follow spec as defined here: https://gist.github.com/TayouVR/aad7f8b6d83264b379d90e5100653a76
+        private void CreateOrificeInPrefab(Orifice orifice) {
+            var rootObject = (UnityEngine.Object)orifice.targetObject != null ? orifice.targetObject : orifice.gameObject.transform;
+
+            Debug.Log(rootObject);
+            
+            // Lights
+            var lightParent = new GameObject("Lights");
+            lightParent.transform.SetParent(rootObject, false);
+            CreateLight(orifice.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, orifice.channel, lightParent.transform);
+            CreateLight(ApsLightRole.Normal, orifice.channel, lightParent.transform);
+            
+            // contact senders
+            var sendersParent = new GameObject("Senders");
+            sendersParent.transform.SetParent(rootObject, false);
+            CreateContactSender(orifice.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, orifice.role, sendersParent.transform);
+            CreateContactSender(ApsLightRole.Normal, orifice.role, sendersParent.transform);
+            
+            
+        }
+
+        private void CreateContactSender(ApsLightRole lightRole, ApsRole role, Transform parent) {
+            var gameObject = new GameObject(lightRole == ApsLightRole.Normal ? "Front" :  "Root", typeof(VRCContactSender));
+            gameObject.transform.SetParent(parent, false);
+            var vrcContactSender = gameObject.GetComponent<VRCContactSender>();
+            vrcContactSender.radius = 0.001f;
+
+            if (lightRole == ApsLightRole.Normal) {
+                vrcContactSender.collisionTags.Add(ContactSpsSocketFront);
+                vrcContactSender.collisionTags.Add(ContactTpsOrificeNorm);
+                gameObject.transform.localPosition = new Vector3(0, 0, 0.01f);
+            } else {
+                vrcContactSender.collisionTags.Add(ContactSpsSocketRoot);
+                vrcContactSender.collisionTags.Add(ContactTpsOrificeRoot);
+                
+                switch (role) {
+                    case ApsRole.Hole:
+                        vrcContactSender.collisionTags.Add(ContactSpsSocketHole);
+                        break;
+                    case ApsRole.Ring:
+                        vrcContactSender.collisionTags.Add(ContactSpsSocketRing);
+                        vrcContactSender.collisionTags.Add(ContactSpsSocketHole);
+                        break;
+                    case ApsRole.ReversibleRing:
+                        vrcContactSender.collisionTags.Add(ContactSpsSocketRing);
+                        break;
                 }
             }
         }
+
+        private void CreateLight(ApsLightRole role, ApsChannel channel, Transform parent) {
+            var gameObject = new GameObject(role == ApsLightRole.Normal ? "Front" :  "Root", typeof(Light));
+            gameObject.transform.SetParent(parent, false);
+            var light = gameObject.GetComponent<Light>();
+            light.color = Color.black;
+            light.range = GetRangeFromRoleAndChannel(role, channel);
+            light.renderMode = LightRenderMode.ForceVertex;
+
+            if (role == ApsLightRole.Normal) {
+                gameObject.transform.localPosition = new Vector3(0, 0, 0.01f);
+            }
+        }
+        
+        private float GetRangeFromRoleAndChannel(ApsLightRole role, ApsChannel channel) {
+            if (channel == ApsChannel.DpsChannel0) {
+                return role == ApsLightRole.RingBase ? Ch0Ring : role == ApsLightRole.Normal ? Ch0Normal : Ch0Regular;
+            } else if (channel == ApsChannel.DpsChannel1) {
+                return role == ApsLightRole.RingBase ? Ch1Ring : role == ApsLightRole.Normal ? Ch1Normal : Ch1Regular;
+            }
+
+            return Ch0Regular;
+        }
+    }
+
+    internal enum ApsLightRole {
+        RingBase,
+        HoleBase,
+        Normal,
+        Tip, // tip shouldn't ever be needed, but for completeness with DPS spec I'm including it
     }
 }
