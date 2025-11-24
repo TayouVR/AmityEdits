@@ -1,0 +1,16 @@
+#graph-container {
+    flex-grow: 1;
+    background-color: rgb(50, 50, 50);
+}
+
+#points-container {
+    position: absolute;
+}
+
+.action-point {
+    cursor: move-arrow;
+}
+
+.action-point:hover {
+    border-color: rgb(255, 255, 0);
+}
