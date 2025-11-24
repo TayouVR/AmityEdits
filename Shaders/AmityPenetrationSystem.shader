@@ -99,8 +99,8 @@ Shader "Custom/AmityPenetrationSystem" {
 	        // Helper function to create rotation matrix from euler angles
 	        float3x3 EulerToRotMatrix(float3 euler)
 	        {
-	            float3 sinXYZ = sin(euler);
-	            float3 cosXYZ = cos(euler);
+	            float3 sinXYZ = sin(radians(euler));
+	            float3 cosXYZ = cos(radians(euler));
 
 	            float3x3 rotX = float3x3(
 	                1,		  0,		 0,
