@@ -234,76 +234,8 @@ Shader "Custom/AmityPenetrationSystem" {
                 float4 gizmoColor = float4(distanceAlongPenetrator < 0 ? 1 : 0, visualT > 2 ? 1 : 0,
                     distanceAlongPenetrator, 1);
                 o.color = gizmoColor; //float4(visualT, 1-visualT, visualT > 2 ? 1 : 0, 1);
-	      //   	
-    			// // Create rotation matrix from euler angles
-    			// float3x3 startRotMatrix = EulerToRotMatrix(_StartRotation);
-       //          
-       //          // Define Basis Vectors (Assuming Y is length/Forward based on your C# code)
-    			// float3 startRight   = float3(startRotMatrix[0][0], startRotMatrix[1][0], startRotMatrix[2][0]); // X
-    			// float3 startForward = float3(startRotMatrix[0][1], startRotMatrix[1][1], startRotMatrix[2][1]); // Y
-       //          // float3 startUp      = float3(startRotMatrix[0][2], startRotMatrix[1][2], startRotMatrix[2][2]); // Z
-       //
-    			// float3 p0 = _StartPosition;
-       //          // P1 is the first control point handle
-    			// float3 p1 = p0 + (startForward * (_PenetratorLength * 0.25)); // bezierHandleSize hardcoded to 0.25 for now
-       //          
-       //          // Single Bezier curve setup (p0, p1, p2, p3)
-       //          // p2 is handle for orifice
-       //          float3 p3 = orificePositionTracker;
-       //          // Assuming Orifice Normal points OUT of the hole, we want the curve to enter AGAINST normal?
-       //          // OrificeNormalTracker is a position, not a direction vector in your debug code, need to derive direction
-       //          float3 orificeDirection = normalize(orificePositionTracker - orificeNormalTracker);
-       //          float3 p2 = p3 + (orificeDirection * (_PenetratorLength * 0.25));
-       //
-       //          // Calculate linear distance along the mesh spine
-    	  //       float distanceAlongPenetrator = GetDistanceAlongPath(_StartPosition, _StartRotation, v.vertex);
-       //          float t = distanceAlongPenetrator / _PenetratorLength; // Normalized t 0-1
-       //
-       //          // --- SPLINE CALCULATION ---
-       //          float3 splinePos;
-       //          float3 splineTangent;
-       //
-       //          // Simple logic: if t > 1, go straight.
-       //          // Note: This assumes the bezier length is roughly equal to _PenetratorLength. 
-       //          // For exact arc length preservation, more complex iterative solving is needed in shader.
-       //          if (t > 1.0) {
-       //              // Linear extension
-       //              float3 endTangent = normalize(CubicBezierTangent(p0, p1, p2, p3, 1.0));
-       //              float3 endPos = CubicBezier(p0, p1, p2, p3, 1.0);
-       //              float excessDist = (t - 1.0) * _PenetratorLength;
-       //              
-       //              splinePos = endPos + endTangent * excessDist;
-       //              splineTangent = endTangent;
-       //          } else {
-       //              // Bezier Curve
-       //              // Clamp t to 0 for safety
-       //              float safeT = max(0, t);
-       //              splinePos = CubicBezier(p0, p1, p2, p3, safeT);
-       //              splineTangent = normalize(CubicBezierTangent(p0, p1, p2, p3, safeT));
-       //          }
-       //
-       //          // --- BASIS TRANSFORMATION ---
-       //          // 1. Offset from straight spine
-       //          float3 pointOnStraightSpine = p0 + startForward * distanceAlongPenetrator;
-       //          float3 offsetFromSpine = v.vertex.xyz - pointOnStraightSpine;
-       //
-       //          // 2. Rotation Matrix (StartForward -> SplineTangent)
-       //          float3x3 rotationToSpline = FromToRotation(startForward, splineTangent);
-       //
-       //          // 3. Apply rotation to offset
-       //          // In shader math, we can just multiply the matrix by the vector directly
-       //          float3 rotatedOffset = mul(rotationToSpline, offsetFromSpine);
-       //
-       //          // 4. Final position
-    			// float3 deformedPosition = splinePos + rotatedOffset;
-       //
-       //          // Blend based on DeformStrength or logic
-       //          deformedPosition = lerp(v.vertex.xyz, deformedPosition, _DeformStrength);
-       //
-       //      
-       //          o.vertex = UnityObjectToClipPos(float4(deformedPosition, 1));
-       //          o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
-    	  //       o.color = float4(t < 0 ? 1 : 0, t > 1 ? 1 : 0, t, 1);
+	            
+	        	
                 return o;
 	        }
 
