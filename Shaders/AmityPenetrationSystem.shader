@@ -23,7 +23,7 @@ Shader "Custom/AmityPenetrationSystem" {
 		_ID_Normal("ID Normal", Float) = 0
         
         [Header(Spline Controls)]
-        _BezierHandleSize ("Bezier Handle Size", Float) = 0.25
+        _BezierHandleSize ("Bezier Handle Size", Range(0.05,0.5)) = 0.15
         _Orifice1Position ("Orifice 1 Position", Vector) = (0,0.2,0,0)
         _Orifice1Rotation ("Orifice 1 Rotation (Euler)", Vector) = (0,0,0,0)
         _Orifice2Position ("Orifice 2 Position", Vector) = (0,0.4,0,0)
