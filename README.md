@@ -2,6 +2,9 @@
 
 A non destructive unity avatar creation toolbox, using ndmf
 
+> [!NOTE]
+> this project is still in early stages of development.
+
 ## Features
 
 - Selore: a shader (WIP: and shader patcher) similar to VRCFury's SPS (compatible with DPS, SPS, TPS) - includes both sides
