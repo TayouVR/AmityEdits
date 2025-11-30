@@ -5,6 +5,7 @@ Shader "Custom/AmityPenetrationSystem" {
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
 		[Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
+        _RampTex ("Ramp Texture", 2D) = "white" {}
     	
         
 		// Penetrator Options
@@ -46,6 +47,7 @@ Shader "Custom/AmityPenetrationSystem" {
 	        #pragma target 3.0
 
 	        sampler2D _MainTex;
+            sampler2D _RampTex;
 	        fixed4 _Color;
 			float4 _MainTex_ST;
 
@@ -245,6 +247,19 @@ Shader "Custom/AmityPenetrationSystem" {
 	        fixed4 frag (v2f i) : SV_Target
 	        {
 	            fixed4 col = tex2D(_MainTex, i.uv) * _Color;
+
+                float3 normal = normalize(i.worldNormal);
+                float3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
+
+                // Calculate Half-Lambert (ranges from 0 to 1 instead of -1 to 1)
+                // This allows the Ramp Texture to control the shadow falloff completely
+                float ndotl = dot(normal, lightDir) * 0.5 + 0.5;
+                
+                // Sample the ramp texture
+                fixed3 ramp = tex2D(_RampTex, float2(ndotl, 0.5)).rgb;
+                
+                col.rgb *= ramp;
+	        	
 	        	col = lerp(col, i.color, _SplineDebug);
 	            return col;
 	        }
