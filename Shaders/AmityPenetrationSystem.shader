@@ -158,9 +158,11 @@ Shader "Custom/AmityPenetrationSystem" {
 	                    float3 endTangent = normalize(CubicBezierTangent(p3, p4, p5, p6, 1.0));
 	                    float3 endPos = CubicBezier(p3, p4, p5, p6, 1.0);
 	                    if (_AllTheWayThrough < 0.5) {
+	                    	// If not all the way through, calculate end of curve 1 instead.
 							endTangent = normalize(CubicBezierTangent(p0, p1, p2, p3, 1.0));
 							endPos = CubicBezier(p0, p1, p2, p3, 1.0);
 	                    }
+	                	// TODO: both of these curve calculations can probably be replaced with just a reference to the o0 and o1 positions and normals.
 	                    
 	                    float excessDistance = currentPosMeters - lenToWorkWith;
 	                    
@@ -187,6 +189,7 @@ Shader "Custom/AmityPenetrationSystem" {
 
 	        		
 	                // Basis Transformation (Deform Logic)
+	        		// I'm not great with the math here, so I'm documenting each line so I can still understand whats happening here i nthe future.
 	                
 	                // Find the point on the original straight spine
 	                float3 pointOnStraightSpine = _StartPosition + (startUp * distanceAlongSpine);
@@ -209,6 +212,7 @@ Shader "Custom/AmityPenetrationSystem" {
 	        		float distanceAlongPenetrator = GetDistanceAlongLength(_StartPosition, _StartPosition + (startUp * _PenetratorLength), v.vertex);
 	        		
 	                // Blend strength
+	        		// TODO: these lerps could probably all be one, but it was easier for me to do it like this. I want to consolidate them eventually.
                     float blend1 = clamp((len1 - _PenetratorLength * 1.5f) * 5, 0, 1);
                     float blend2 = distanceAlongPenetrator <= 0 ? 1 : 0;
 
@@ -227,12 +231,12 @@ Shader "Custom/AmityPenetrationSystem" {
 		                float4 nanPosition = float4(nan, nan, nan, nan);
 	        			deformedPosition = nanPosition;
 	        		}
-	            
-	                o.vertex = UnityObjectToClipPos(float4(deformedPosition, 1));
 	        		
-	                // Debug visualization: Color gradient based on T
+	                // Debug visualization
 	                float4 gizmoColor = float4(distanceAlongPenetrator < 0 ? 1 : 0, visualT > 2 ? 1 : 0, distanceAlongPenetrator, 1);
 	                o.color = gizmoColor;
+	        		
+	                o.vertex = UnityObjectToClipPos(float4(deformedPosition, 1));
                     o.worldNormal = UnityObjectToWorldNormal(deformedNormal);
 	        	} else {
 					o.vertex = UnityObjectToClipPos(v.vertex);
