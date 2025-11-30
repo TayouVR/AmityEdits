@@ -15,6 +15,7 @@ Shader "Custom/AmityPenetrationSystem" {
         _StartRotation ("Start Rotation", Vector) = (0,0,0,0)
     	_PenetratorLength ("Length", float) = 0.2
 		[Enum(Channel 0,0,Channel 1,1)]_OrificeChannel("Orifice Channel",Float) = 0
+    	[Toggle] _AllTheWayThrough ("All The Way Through", Float) = 0
         
         [Header(Spline Controls)]
         _BezierHandleSize ("Bezier Handle Size", Range(0.05,0.5)) = 0.15
@@ -140,6 +141,7 @@ Shader "Custom/AmityPenetrationSystem" {
 	                float len1 = CalculateArcLength(p0, p1, p2, p3, 1);
 	                float len2 = CalculateArcLength(p3, p4, p5, p6, 1);
 	                float totalLen = len1 + len2;
+	        		float lenToWorkWith = lerp(len1, totalLen, _AllTheWayThrough);
 	        		
 	                // Determine Spline Position and Tangent
 	                float3 splinePos;
@@ -148,13 +150,17 @@ Shader "Custom/AmityPenetrationSystem" {
 
 
 	                // CALCULATE SPLINE POSITION (Linear Extension vs Bezier)
-	                if (currentPosMeters > totalLen) {
+	                if (currentPosMeters > lenToWorkWith) {
 	                    // --- LINEAR EXTENSION MODE ---
 	                    // Calculate end of curve 2
 	                    float3 endTangent = normalize(CubicBezierTangent(p3, p4, p5, p6, 1.0));
 	                    float3 endPos = CubicBezier(p3, p4, p5, p6, 1.0);
+	                    if (_AllTheWayThrough < 0.5) {
+							endTangent = normalize(CubicBezierTangent(p0, p1, p2, p3, 1.0));
+							endPos = CubicBezier(p0, p1, p2, p3, 1.0);
+	                    }
 	                    
-	                    float excessDistance = currentPosMeters - totalLen;
+	                    float excessDistance = currentPosMeters - lenToWorkWith;
 	                    
 	                    splinePos = endPos + endTangent * excessDistance;
 	                    splineTangent = endTangent;
