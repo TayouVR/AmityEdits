@@ -1,7 +1,7 @@
 {
   "name": "org.tayou.amity-edits",
   "displayName": "AmityEdits",
-  "version": "1.0.0",
+  "version": "0.1.0-preview.1",
   "unity": "2019.4",
   "description": "a non-destructive Avatar toolbox\n\nAmity: a friendly and peaceful relationship - Latin: \"amicitia\" -> \"friendship\"",
   "author": {
@@ -9,7 +9,7 @@
     "email": "upm-contact@tayou.org",
     "url": "https://www.tayou.org/"
   },
-  "url": "https://github.com/TayouVR/VRCFuryExtensions.git",
+  "url": "https://github.com/TayouVR/AmityEdits",
   "type": "tool",
   "dependencies": {
     "nadena.dev.ndmf": "1.2.2"
