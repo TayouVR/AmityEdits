@@ -1,3 +1,5 @@
+#ifndef SELORE_UTILS
+#define SELORE_UTILS
 
 // Helper function to create rotation matrix from euler angles
 float3x3 EulerToRotMatrix(float3 euler)
@@ -43,3 +45,4 @@ float3x3 FromToRotation(float3 fromVec, float3 toVec)
         h     * v.x * v.z - v.y,    h     * v.y    * v.z + v.x,    e + h * v.z * v.z
     );
 }
+#endif

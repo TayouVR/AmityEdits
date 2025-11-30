@@ -1,3 +1,6 @@
+#ifndef SELORE_LIGHTS
+#define SELORE_LIGHTS
+
 #include <HLSLSupport.cginc>
 #include <UnityShaderVariables.cginc>
 
@@ -20,24 +23,24 @@ int GetLightRole(float range, int channel) {
     float targetRing = (channel == 0) ? 0.02 : 0.04;
     float targetNormal = (channel == 0) ? 0.05 : 0.06;
 
-    if (abs(dec - targetHole) < eps) return LIGHT_ROLE_HOLE;
-    if (abs(dec - targetNormal) < eps) return LIGHT_ROLE_NORMAL;
+    if (abs(dec - targetHole) < eps) return SELORE_LIGHT_ROLE_HOLE;
+    if (abs(dec - targetNormal) < eps) return SELORE_LIGHT_ROLE_NORMAL;
 
     // Ring Check (includes subtype logic)
     // Check basic ring ID
-    if (abs(dec - targetRing) < eps) return LIGHT_ROLE_RING_TWOWAY;
+    if (abs(dec - targetRing) < eps) return SELORE_LIGHT_ROLE_RING_TWOWAY;
 
     // Check one-way ring ID (base + 0.005, e.g., #.#25)
-    if (abs(dec - (targetRing + 0.005)) < eps) return LIGHT_ROLE_RING_ONEWAY;
+    if (abs(dec - (targetRing + 0.005)) < eps) return SELORE_LIGHT_ROLE_RING_ONEWAY;
 
-    return LIGHT_ROLE_UNKNOWN;
+    return SELORE_LIGHT_ROLE_UNKNOWN;
 }
 
 // Scans all 4 vertex lights and categorizes them
-void ScanLights(int channel, out LightInfo lights[4]) {
+void ScanLights(int channel, out Selore_LightInfo lights[4]) {
     [unroll]
     for (int i = 0; i < 4; i++) {
-        lights[i].role = LIGHT_ROLE_UNKNOWN;
+        lights[i].role = SELORE_LIGHT_ROLE_UNKNOWN;
         lights[i].position = float3(0, 0, 0);
 
         // Check brightness threshold (< 0.01 on RGB)
@@ -52,18 +55,18 @@ void ScanLights(int channel, out LightInfo lights[4]) {
 }
 
 // Main logic: Finds up to two valid orifices by pairing holes/rings with normal lights
-void GetOrifices(int channel, float3 startPos, out OrificeData o1, out OrificeData o2) {
-    LightInfo lights[4];
+void GetOrifices(int channel, float3 startPos, out Selore_OrificeData o1, out Selore_OrificeData o2) {
+    Selore_LightInfo lights[4];
     ScanLights(channel, lights);
 
     // Initialize defaults
     o1.isValid = false;
-    o1.type = LIGHT_ROLE_UNKNOWN;
+    o1.type = SELORE_LIGHT_ROLE_UNKNOWN;
     o1.position = float3(0, 0, 0);
     o1.normal = float3(0, 0, 1);
     o1.normalLightPosition = float3(0, 0, 0);
     o2.isValid = false;
-    o2.type = LIGHT_ROLE_UNKNOWN;
+    o2.type = SELORE_LIGHT_ROLE_UNKNOWN;
     o2.position = float3(0, 0, 0);
     o2.normal = float3(0, 0, 1);
     o2.normalLightPosition = float3(0, 0, 0);
@@ -76,14 +79,14 @@ void GetOrifices(int channel, float3 startPos, out OrificeData o1, out OrificeDa
         int role = lights[i].role;
 
         // If we found a potential orifice light
-        if (role == LIGHT_ROLE_HOLE || role == LIGHT_ROLE_RING_TWOWAY || role == LIGHT_ROLE_RING_ONEWAY) {
+        if (role == SELORE_LIGHT_ROLE_HOLE || role == SELORE_LIGHT_ROLE_RING_TWOWAY || role == SELORE_LIGHT_ROLE_RING_ONEWAY) {
             // Search for a nearby Normal light to pair with
             int bestNormal = -1;
             float minDist = 100.0;
 
             [unroll]
             for (int j = 0; j < 4; j++) {
-                if (lights[j].role == LIGHT_ROLE_NORMAL) {
+                if (lights[j].role == SELORE_LIGHT_ROLE_NORMAL) {
                     float d = distance(lights[i].position, lights[j].position);
                     if (d < maxDist && d < minDist) {
                         minDist = d;
@@ -94,14 +97,14 @@ void GetOrifices(int channel, float3 startPos, out OrificeData o1, out OrificeDa
 
             // If a pair was found
             if (bestNormal != -1) {
-                OrificeData res;
+                Selore_OrificeData res;
                 res.isValid = true;
                 res.type = role;
                 res.position = lights[i].position;
                 res.normalLightPosition = lights[bestNormal].position;
                 // Calculate direction: From Orifice Position -> Normal Position
                 res.normal = -normalize(lights[i].position - lights[bestNormal].position);
-                if (role == LIGHT_ROLE_RING_TWOWAY
+                if (role == SELORE_LIGHT_ROLE_RING_TWOWAY
                     && distance(startPos, res.position) < distance(startPos, res.normalLightPosition)) {
                     res.normal = normalize(lights[i].position - lights[bestNormal].position);
                 }
@@ -122,7 +125,7 @@ void GetOrifices(int channel, float3 startPos, out OrificeData o1, out OrificeDa
     // Sort based on distance to startPos
     if (o1.isValid && o2.isValid) {
         if (distance(startPos, o1.position) > distance(startPos, o2.position)) {
-            OrificeData temp = o1;
+            Selore_OrificeData temp = o1;
             o1 = o2;
             o2 = temp;
         }
@@ -133,3 +136,4 @@ void GetOrifices(int channel, float3 startPos, out OrificeData o1, out OrificeDa
         o2.isValid = false;
     }
 }
+#endif

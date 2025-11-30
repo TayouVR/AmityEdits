@@ -1,3 +1,7 @@
+#ifndef SELORE_SPLINE
+#define SELORE_SPLINE
+
+#include "utils.cginc"
 
 float3 CubicBezier(float3 p0, float3 p1, float3 p2, float3 p3, float t) {
     float t2 = t * t;
@@ -86,3 +90,38 @@ float GetDistanceAlongLength(float3 startPos, float3 target, float3 position) {
     // Normalize by length to get t value (0-1 range for the path, but can be negative or >1)
     return distanceAlongPath / dot(startEndVector, startEndVector);
 }
+	        
+void GetCurvePoints(
+    out float3 p0, out float3 p1, out float3 p2, 
+    out float3 p3, out float3 p4, out float3 p5, 
+    out float3 p6, Selore_OrificeData o1, Selore_OrificeData o2
+    ) {
+    // Calculate Basis vectors from Rotations
+    float3x3 startMatrix = EulerToRotMatrix(Selore_StartRotation);
+    float3 startUp = mul(startMatrix, float3(0,1,0)); 
+    float3 startRight = mul(startMatrix, float3(1,0,0));
+    float3 startForward = mul(startMatrix, float3(0,0,1)); // Z-axis
+
+    float3 o1Up = o1.normal; 
+    float3 o2Up = -o2.normal; 
+    
+    // TODO: make handle length dynamic based on distance between points
+    float handleLen = Selore_PenetratorLength * Selore_BezierHandleSize;
+    float handleLen1 = distance(Selore_StartPosition, o1.position) * Selore_BezierHandleSize;
+    float handleLen2 = distance(o1.position, o2.position) * Selore_BezierHandleSize;
+
+    // Define Control Points (P0 - P6)
+    p0 = Selore_StartPosition;
+    p1 = p0 + (startUp * handleLen1);
+    
+    p3 = o1.position;
+    // Entering orifice 1
+    p2 = p3 + (o1Up * handleLen1);
+    // Exiting orifice 1 (opposite direction to maintain smoothness)
+    p4 = p3 - (o1Up * handleLen2);
+
+    p6 = o2.position;
+    // Entering orifice 2
+    p5 = p6 + (o2Up * handleLen2); // Note: Check direction logic, usually -Up if going into it
+}
+#endif
