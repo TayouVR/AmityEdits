@@ -212,6 +212,13 @@ Shader "Custom/AmityPenetrationSystem" {
 	        		
 	                deformedPosition = lerp(v.vertex.xyz, deformedPosition, _DeformStrength);
                     deformedNormal = lerp(v.normal, deformedNormal, _DeformStrength);
+	        		
+	        		// hide section between point 1 and 2, as its inside body and supposed to not be visible.
+	        		if (o1.type == LIGHT_ROLE_HOLE && (visualT > 1 && visualT < 2)) {
+		                float nan = 0.0 / 0.0;
+		                float4 nanPosition = float4(nan, nan, nan, nan);
+	        			deformedPosition = nanPosition;
+	        		}
 	            
 	                o.vertex = UnityObjectToClipPos(float4(deformedPosition, 1));
 	        		
