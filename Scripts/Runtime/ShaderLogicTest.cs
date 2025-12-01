@@ -27,11 +27,5 @@ namespace org.Tayou.AmityEdits {
         [Tooltip( "Size of the handles for the bezier curve, in percent to the penetrator length" )]
         public float bezierHandleSize = 0.25f;
 //        [Enum(Channel 0,0,Channel 1,1)]_OrificeChannel("Orifice Channel",Float) = 0 
-        //
-        // [Header(Penetrator Legacy)]
-        // [Toggle(_USE_IDS)] _UseIDs("Use IDs", Float) = 0
-        // _ID_Orifice("ID Oriface", Float) = 0
-        // _ID_RingOrifice("ID Ring Oriface", Float) = 0
-        // _ID_Normal("ID Normal", Float) = 0
     }
 }

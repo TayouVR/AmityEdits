@@ -26,7 +26,7 @@ namespace org.Tayou.AmityEdits {
     public class OrificeDepthAction : AmityBaseComponent {
         
         /// Depth actions are using this orifice.
-        public Orifice orifice;
+        public SeloreHole SeloreHole;
 
         /// should be no less than -1 (1m outside)
         /// should be no more than 3 (3m inside)

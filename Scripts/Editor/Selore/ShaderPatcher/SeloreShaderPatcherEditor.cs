@@ -23,12 +23,12 @@ using org.Tayou.AmityEdits;
 
 namespace org.Tayou.AmityEdits {
 
-[CustomEditor(typeof(SPSPlug))]
-public class ShaderPatcherEditor : Editor {
+[CustomEditor(typeof(SeloreShaderPatcher))]
+public class SeloreShaderPatcherEditor : Editor {
     
     public override VisualElement CreateInspectorGUI() {
         var root = new VisualElement();
-        var target = serializedObject.targetObject as SPSPlug;
+        var target = serializedObject.targetObject as SeloreShaderPatcher;
 
         var rendererField = new ObjectField("Renderer");
         rendererField.objectType = typeof(Renderer);

@@ -68,8 +68,8 @@ namespace org.Tayou.AmityEdits {
             sequence.Run("Item Setups", ctx => new ItemSetupPass(ctx).Process());
             sequence.Run("Clothing Manager", ctx => new ClothingManagerPass(ctx).Process());
             sequence.Run("Menu Items", ctx => new MenuItemPass(ctx).Process());
-            sequence.Run("Amity Orifice Builder", ctx => new OrificePass(ctx).Process());
-            sequence.Run("Amity Plug Patcher", ctx => new SPSPlugPass(ctx).Process());
+            sequence.Run("Selore Orifice Builder", ctx => new OrificePass(ctx).Process());
+            sequence.Run("Selore Shader Patcher", ctx => new SelorePatcherPass(ctx).Process());
             
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here

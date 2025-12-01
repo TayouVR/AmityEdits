@@ -56,7 +56,7 @@ namespace org.Tayou.AmityEdits {
         }
 
         public void Process() {
-            var components = _buildContext.AvatarRootObject.GetComponentsInChildren<Orifice>(true);
+            var components = _buildContext.AvatarRootObject.GetComponentsInChildren<SeloreHole>(true);
             Debug.Log($"orifice count: {components.Length}");
 
             if (components.Length == 0) return;
@@ -68,22 +68,22 @@ namespace org.Tayou.AmityEdits {
         }
 
         // follow spec as defined here: https://gist.github.com/TayouVR/aad7f8b6d83264b379d90e5100653a76
-        private void CreateOrificeInPrefab(Orifice orifice) {
-            var rootObject = (UnityEngine.Object)orifice.targetObject != null ? orifice.targetObject : orifice.gameObject.transform;
+        private void CreateOrificeInPrefab(SeloreHole seloreHole) {
+            var rootObject = (UnityEngine.Object)seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.gameObject.transform;
 
             Debug.Log(rootObject);
             
             // Lights
             var lightParent = new GameObject("Lights");
             lightParent.transform.SetParent(rootObject, false);
-            CreateLight(orifice.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, orifice.channel, lightParent.transform);
-            CreateLight(ApsLightRole.Normal, orifice.channel, lightParent.transform);
+            CreateLight(seloreHole.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.channel, lightParent.transform);
+            CreateLight(ApsLightRole.Normal, seloreHole.channel, lightParent.transform);
             
             // contact senders
             var sendersParent = new GameObject("Senders");
             sendersParent.transform.SetParent(rootObject, false);
-            CreateContactSender(orifice.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, orifice.role, sendersParent.transform);
-            CreateContactSender(ApsLightRole.Normal, orifice.role, sendersParent.transform);
+            CreateContactSender(seloreHole.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.role, sendersParent.transform);
+            CreateContactSender(ApsLightRole.Normal, seloreHole.role, sendersParent.transform);
             
             
         }

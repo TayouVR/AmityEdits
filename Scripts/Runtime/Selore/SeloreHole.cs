@@ -24,7 +24,7 @@ namespace org.Tayou.AmityEdits {
      * This component represents a DPS/TPS orifice or SPS Socket
      */
     [AddComponentMenu("Amity Edits/Orifice")]
-    public class Orifice : AmityBaseComponent {
+    public class SeloreHole : AmityBaseComponent {
 
         /// The object, where the orifice should be placed
         public Transform targetObject;
