@@ -119,10 +119,11 @@ void GetOrifices(int channel, float3 startPos, out Selore_OrificeData o1, out Se
                 res.position = lights[i].position;
                 res.normalLightPosition = lights[bestNormal].position;
                 // Calculate direction: From Orifice Position -> Normal Position
-                res.normal = -normalize(lights[i].position - lights[bestNormal].position);
-                if (role == SELORE_LIGHT_ROLE_RING_TWOWAY
-                    && distance(startPos, res.position) < distance(startPos, res.normalLightPosition)) {
-                    res.normal = normalize(lights[i].position - lights[bestNormal].position);
+                res.normal = normalize(res.position - res.normalLightPosition);
+                if (role == SELORE_LIGHT_ROLE_RING_TWOWAY) {
+                    float3 toStart = normalize(startPos - res.position);
+                    if (dot(res.normal, toStart) < 0.0)
+                        res.normal = -res.normal;
                 }
 
                 if (foundCount == 0) {
