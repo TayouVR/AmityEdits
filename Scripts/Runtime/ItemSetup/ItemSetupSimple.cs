@@ -19,6 +19,7 @@ using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
     
+    [AddComponentMenu("Amity Edits/Item Setup Simple")]
     public class ItemSetupSimple : MonoBehaviour {
         
         public bool itemDefaultActiveState;
