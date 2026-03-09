@@ -198,6 +198,7 @@ namespace org.Tayou.AmityEdits {
                 fxController.AddParameter(animatorParameter);
             }
 
+            Debug.Log($"parameter was generated or already existed - name: {animatorParameter.name}");
             return animatorParameter;
         }
 
