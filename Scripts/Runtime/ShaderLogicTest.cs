@@ -17,7 +17,9 @@ namespace org.Tayou.AmityEdits {
         
         [Header( "Debug Orifice Position")]
         public Transform Orifice1Transform;
+        public Transform Orifice1NormalTransform;
         public Transform Orifice2Transform;
+        public Transform Orifice2NormalTransform;
         public int sampleCount = 100;
         public Mesh debugMesh;
         public bool useDebugMesh = true;
