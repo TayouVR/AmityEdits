@@ -36,16 +36,16 @@ namespace org.Tayou.AmityEdits {
         // animation - these properties may be animated.
         public bool enableDeformation;
         public bool enableToyContacts;
-        public ApsChannel channel;
-        public ApsRole role;
+        public SeloreChannel channel;
+        public SeloreRole role;
     }
 
-    public enum ApsChannel {
+    public enum SeloreChannel {
         DpsChannel0 = 0,
         DpsChannel1 = 1,
     }
 
-    public enum ApsRole {
+    public enum SeloreRole {
         Hole,
         Ring,
         ReversibleRing,

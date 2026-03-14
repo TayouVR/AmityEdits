@@ -123,7 +123,6 @@ void GetCurvePoints(
     float3 o2Up = -o2.normal; 
     
     // TODO: make handle length dynamic based on distance between points
-    float handleLen = Selore_PenetratorLength * Selore_BezierHandleSize;
     float handleLen1 = distance(Selore_StartPosition, o1.position) * Selore_BezierHandleSize;
     float handleLen2 = distance(o1.position, o2.position) * Selore_BezierHandleSize;
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -16,10 +17,8 @@ namespace org.Tayou.AmityEdits {
         public float _PenetratorLength = 0.2f;
         
         [Header( "Debug Orifice Position")]
-        public Transform Orifice1Transform;
-        public Transform Orifice1NormalTransform;
-        public Transform Orifice2Transform;
-        public Transform Orifice2NormalTransform;
+        public List<Light> lights;
+        public SeloreChannel _OrificeChannel = SeloreChannel.DpsChannel0;
         public int sampleCount = 100;
         public Mesh debugMesh;
         public bool useDebugMesh = true;
@@ -28,6 +27,7 @@ namespace org.Tayou.AmityEdits {
         [Range(0, 1)]
         [Tooltip( "Size of the handles for the bezier curve, in percent to the penetrator length" )]
         public float bezierHandleSize = 0.25f;
+        public bool _AllTheWayThrough = false;
 //        [Enum(Channel 0,0,Channel 1,1)]_OrificeChannel("Orifice Channel",Float) = 0 
     }
 }

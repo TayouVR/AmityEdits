@@ -78,12 +78,12 @@ void GetOrifices(int channel, float3 startPos, out Selore_OrificeData o1, out Se
     // Initialize defaults
     o1.isValid = false;
     o1.type = SELORE_LIGHT_ROLE_UNKNOWN;
-    o1.position = float3(0, 0, 0);
+    o1.position = float3(100, 100, 100);
     o1.normal = float3(0, 0, 1);
     o1.normalLightPosition = float3(0, 0, 0);
     o2.isValid = false;
     o2.type = SELORE_LIGHT_ROLE_UNKNOWN;
-    o2.position = float3(0, 0, 0);
+    o2.position = float3(100, 100, 100);
     o2.normal = float3(0, 0, 1);
     o2.normalLightPosition = float3(0, 0, 0);
 
@@ -119,7 +119,8 @@ void GetOrifices(int channel, float3 startPos, out Selore_OrificeData o1, out Se
                 res.position = lights[i].position;
                 res.normalLightPosition = lights[bestNormal].position;
                 // Calculate direction: From Orifice Position -> Normal Position
-                res.normal = normalize(res.position - res.normalLightPosition);
+                res.normal = normalize(res.normalLightPosition - res.position);
+
                 if (role == SELORE_LIGHT_ROLE_RING_TWOWAY) {
                     float3 toStart = normalize(startPos - res.position);
                     if (dot(res.normal, toStart) < 0.0)
@@ -151,6 +152,12 @@ void GetOrifices(int channel, float3 startPos, out Selore_OrificeData o1, out Se
         // Fallback safety: if only O2 was found (unlikely with current logic), move it to O1
         o1 = o2;
         o2.isValid = false;
+    }
+
+    if (o2.type == SELORE_LIGHT_ROLE_RING_TWOWAY) {
+        float3 toStart = normalize(startPos - o2.position);
+        if (dot(o2.normal, toStart) < 0.0)
+            o2.normal = -o2.normal;
     }
 }
 #endif

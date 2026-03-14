@@ -76,19 +76,19 @@ namespace org.Tayou.AmityEdits {
             // Lights
             var lightParent = new GameObject("Lights");
             lightParent.transform.SetParent(rootObject, false);
-            CreateLight(seloreHole.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.channel, lightParent.transform);
+            CreateLight(seloreHole.role == SeloreRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.channel, lightParent.transform);
             CreateLight(ApsLightRole.Normal, seloreHole.channel, lightParent.transform);
             
             // contact senders
             var sendersParent = new GameObject("Senders");
             sendersParent.transform.SetParent(rootObject, false);
-            CreateContactSender(seloreHole.role == ApsRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.role, sendersParent.transform);
+            CreateContactSender(seloreHole.role == SeloreRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.role, sendersParent.transform);
             CreateContactSender(ApsLightRole.Normal, seloreHole.role, sendersParent.transform);
             
             
         }
 
-        private void CreateContactSender(ApsLightRole lightRole, ApsRole role, Transform parent) {
+        private void CreateContactSender(ApsLightRole lightRole, SeloreRole role, Transform parent) {
             var gameObject = new GameObject(lightRole == ApsLightRole.Normal ? "Front" :  "Root", typeof(VRCContactSender));
             gameObject.transform.SetParent(parent, false);
             var vrcContactSender = gameObject.GetComponent<VRCContactSender>();
@@ -103,21 +103,21 @@ namespace org.Tayou.AmityEdits {
                 vrcContactSender.collisionTags.Add(ContactTpsOrificeRoot);
                 
                 switch (role) {
-                    case ApsRole.Hole:
+                    case SeloreRole.Hole:
                         vrcContactSender.collisionTags.Add(ContactSpsSocketHole);
                         break;
-                    case ApsRole.Ring:
+                    case SeloreRole.Ring:
                         vrcContactSender.collisionTags.Add(ContactSpsSocketRing);
                         vrcContactSender.collisionTags.Add(ContactSpsSocketHole);
                         break;
-                    case ApsRole.ReversibleRing:
+                    case SeloreRole.ReversibleRing:
                         vrcContactSender.collisionTags.Add(ContactSpsSocketRing);
                         break;
                 }
             }
         }
 
-        private void CreateLight(ApsLightRole role, ApsChannel channel, Transform parent) {
+        private void CreateLight(ApsLightRole role, SeloreChannel channel, Transform parent) {
             var gameObject = new GameObject(role == ApsLightRole.Normal ? "Front" :  "Root", typeof(Light));
             gameObject.transform.SetParent(parent, false);
             var light = gameObject.GetComponent<Light>();
@@ -130,10 +130,10 @@ namespace org.Tayou.AmityEdits {
             }
         }
         
-        private float GetRangeFromRoleAndChannel(ApsLightRole role, ApsChannel channel) {
-            if (channel == ApsChannel.DpsChannel0) {
+        private float GetRangeFromRoleAndChannel(ApsLightRole role, SeloreChannel channel) {
+            if (channel == SeloreChannel.DpsChannel0) {
                 return role == ApsLightRole.RingBase ? Ch0Ring : role == ApsLightRole.Normal ? Ch0Normal : Ch0Regular;
-            } else if (channel == ApsChannel.DpsChannel1) {
+            } else if (channel == SeloreChannel.DpsChannel1) {
                 return role == ApsLightRole.RingBase ? Ch1Ring : role == ApsLightRole.Normal ? Ch1Normal : Ch1Regular;
             }
 

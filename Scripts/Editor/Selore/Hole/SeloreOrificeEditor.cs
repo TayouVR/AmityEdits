@@ -56,7 +56,7 @@ namespace org.Tayou.AmityEdits {
             DrawGizmo(rootObject.position, rootObject.rotation, seloreHole.role, "", Selection.activeGameObject == seloreHole.gameObject);
         }
         
-        static void DrawGizmo(Vector3 worldPos, Quaternion worldRot, ApsRole type, string name, bool selected) {
+        static void DrawGizmo(Vector3 worldPos, Quaternion worldRot, SeloreRole type, string name, bool selected) {
             var orange = new Color(1f, 0.5f, 0);
 
             var discColor = orange;
@@ -66,11 +66,11 @@ namespace org.Tayou.AmityEdits {
             if (!Utils.IsDesktop()) {
                 text += " (Deformation Disabled)\nThis is an Android/iOS project!";
                 discColor = Color.red;
-            } else if (type == ApsRole.Hole) {
+            } else if (type == SeloreRole.Hole) {
                 text += " (Hole)\nPlug follows orange arrow";
-            } else if (type == ApsRole.ReversibleRing) {
+            } else if (type == SeloreRole.ReversibleRing) {
                 text += " (Ring)\nSPS enters either direction\nDPS/TPS only follow orange arrow";
-            } else if (type == ApsRole.Ring) {
+            } else if (type == SeloreRole.Ring) {
                 text += " (One-Way Ring)\nPlug follows orange arrow";
             } else {
                 text += " (Deformation disabled)";
@@ -80,13 +80,13 @@ namespace org.Tayou.AmityEdits {
             var worldForward = worldRot * Vector3.forward;
             GizmoUtils.DrawDisc(worldPos, worldForward, 0.02f, discColor);
             GizmoUtils.DrawDisc(worldPos, worldForward, 0.04f, discColor);
-            if (type == ApsRole.Ring) {
+            if (type == SeloreRole.Ring) {
                 GizmoUtils.DrawArrow(
                     worldPos + worldForward * 0.05f,
                     worldPos + worldForward * -0.05f,
                     orange
                 );
-            } else if (type == ApsRole.ReversibleRing) {
+            } else if (type == SeloreRole.ReversibleRing) {
                 GizmoUtils.DrawArrow(
                     worldPos,
                     worldPos + worldForward * -0.05f,

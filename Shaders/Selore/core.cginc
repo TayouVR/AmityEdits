@@ -42,7 +42,8 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         float3 p5;
         float3 p6;
         GetCurvePoints(p0, p1, p2, p3, p4, p5, p6, o1, o2);
-
+        
+        float goForTwoOrifices = min(Selore_AllTheWayThrough, o2.isValid);
         
         // Calculate Distance along mesh spine (Meters)
         // Project vector (vertex - start) onto the StartUp vector
@@ -53,7 +54,7 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         float len1 = CalculateArcLength(p0, p1, p2, p3, 1);
         float len2 = CalculateArcLength(p3, p4, p5, p6, 1);
         float totalLen = len1 + len2;
-        float lenToWorkWith = lerp(len1, totalLen, Selore_AllTheWayThrough);
+        float lenToWorkWith = lerp(len1, totalLen, goForTwoOrifices);
         
         // Determine Spline Position and Tangent
         float3 splinePos;
@@ -64,13 +65,15 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         // CALCULATE SPLINE POSITION (Linear Extension vs Bezier)
         if (currentPosMeters > lenToWorkWith) {
             // --- LINEAR EXTENSION MODE ---
-            // Calculate end of curve 2
-            float3 endTangent = normalize(CubicBezierTangent(p3, p4, p5, p6, 1.0));
-            float3 endPos = CubicBezier(p3, p4, p5, p6, 1.0);
-            if (Selore_AllTheWayThrough < 0.5) {
-                // If not all the way through, calculate end of curve 1 instead.
-				endTangent = normalize(CubicBezierTangent(p0, p1, p2, p3, 1.0));
-				endPos = CubicBezier(p0, p1, p2, p3, 1.0);
+            float3 endPos;
+            float3 endTangent;
+
+            if (goForTwoOrifices < 0.5) {
+                endPos = p3;
+                endTangent = normalize(CubicBezierTangent(p0, p1, p2, p3, 1.0));
+            } else {
+                endPos = p6;
+                endTangent = normalize(CubicBezierTangent(p3, p4, p5, p6, 1.0));
             }
             // TODO: both of these curve calculations can probably be replaced with just a reference to the o1 and o2 positions and normals.
             
@@ -99,7 +102,7 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
 
         
         // Basis Transformation (Deform Logic)
-        // I'm not great with the math here, so I'm documenting each line so I can still understand whats happening here i nthe future.
+        // I'm not great with the math here, so I'm documenting each line so I can still understand what's happening here in the future.
         
         // Find the point on the original straight spine
         float3 pointOnStraightSpine = Selore_StartPosition + (startUp * distanceAlongSpine);
@@ -136,14 +139,13 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         deformedNormal = lerp(vertexNormal, deformedNormal, Selore_DeformStrength);
         
         // hide section between point 1 and 2, as its inside body and supposed to not be visible.
-        if (o1.type == SELORE_LIGHT_ROLE_HOLE && (visualT > 1 && visualT < 2)) {
-            float nan = 0.0 / 0.0;
-            float4 nanPosition = float4(nan, nan, nan, nan);
+        if (o1.type == SELORE_LIGHT_ROLE_HOLE && (visualT > 1 && (!o2.isValid || visualT < 2))) {
 	        deformedPosition = nanPosition;
         }
         
         // Debug visualization
-        color = float4(distanceAlongPenetrator < 0 ? 1 : 0, visualT > 2 ? 1 : 0, distanceAlongPenetrator, 1);
+        // color = float4(distanceAlongPenetrator < 0 ? 1 : 0, visualT > 2 ? 1 : 0, distanceAlongPenetrator, 1);
+        color = float4(o1.isValid, o2.isValid, distanceAlongPenetrator, 1);
         
         vertexPos = float4(deformedPosition, 1);
         vertexNormal = deformedNormal;

@@ -62,4 +62,24 @@ float3x3 FromToRotation(float3 fromVec, float3 toVec)
         h     * v.x * v.z - v.y,    h     * v.y    * v.z + v.x,    e + h * v.z * v.z
     );
 }
+
+float RemapValue(float value, float min1, float max1, float min2, float max2) {
+    return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+}
+
+/**
+ * maps and clamps to range between 0 and 1 - useful for lerp
+ * @param value 
+ * @param min source min. will become 0
+ * @param max source max. will become 1
+ * @return 
+ */
+float RemapAndClampValue(float value, float min, float max) {
+    return saturate(RemapValue(value, min, max, 0, 1));
+}
+
+
+const float nan = 0.0 / 0.0;
+const float4 nanPosition = float4(nan, nan, nan, nan);
+
 #endif
