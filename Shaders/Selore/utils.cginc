@@ -78,8 +78,4 @@ float RemapAndClampValue(float value, float min, float max) {
     return saturate(RemapValue(value, min, max, 0, 1));
 }
 
-
-const float nan = 0.0 / 0.0;
-const float4 nanPosition = float4(nan, nan, nan, nan);
-
 #endif

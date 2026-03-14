@@ -138,9 +138,29 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         deformedPosition = lerp(vertexPos.xyz, deformedPosition, Selore_DeformStrength);
         deformedNormal = lerp(vertexNormal, deformedNormal, Selore_DeformStrength);
         
+        const float nan = 0.0 / 0.0;
+        const float4 nanPosition = float4(nan, nan, nan, nan);
+        
         // hide section between point 1 and 2, as its inside body and supposed to not be visible.
-        if (o1.type == SELORE_LIGHT_ROLE_HOLE && (visualT > 1 && (!o2.isValid || visualT < 2))) {
-	        deformedPosition = nanPosition;
+        if (o1.type == SELORE_LIGHT_ROLE_HOLE) {
+            float shrink = 0.0;
+            bool hide = false;
+
+            if (o2.isValid) {
+                float shrinkIn  = smoothstep(0.90, 1.10, visualT);
+                float shrinkOut = 1.0 - smoothstep(1.90, 2.10, visualT);
+                shrink = saturate(shrinkIn * shrinkOut);
+                hide = visualT > 1.10 && visualT < 1.90;
+            } else {
+                shrink = smoothstep(1.00, 1.15, visualT);
+                hide = visualT > 1.15;
+            }
+
+            deformedPosition = lerp(deformedPosition, splinePos, shrink * Selore_DeformStrength);
+                        
+            if (hide) {
+                deformedPosition = nanPosition;
+            }
         }
         
         // Debug visualization

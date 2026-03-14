@@ -438,6 +438,15 @@ namespace org.Tayou.AmityEdits {
 
             return rotZ * rotY * rotX;
         }
+        
+        private static float SmoothStep(float edge0, float edge1, float x) {
+            if (Mathf.Approximately(edge0, edge1)) {
+                return x < edge0 ? 0f : 1f;
+            }
+
+            float t = Mathf.Clamp01((x - edge0) / (edge1 - edge0));
+            return t * t * (3f - 2f * t);
+        }
 
         [DrawGizmo(GizmoType.Selected | GizmoType.NonSelected | GizmoType.Pickable)]
         static void DrawGizmo2(ShaderLogicTest targetObject, GizmoType gizmoType) {
@@ -560,20 +569,39 @@ namespace org.Tayou.AmityEdits {
 
                     deformedPosition = Vector3.Lerp(vertexPos, deformedPosition, targetObject._DeformStrength);
                     deformedNormal = Vector3.Lerp(vertexNormal, deformedNormal, targetObject._DeformStrength);
+                    
+                    Vector3 nanPosition = new Vector3(float.NaN, float.NaN, float.NaN);
+                    
+                    if (o1.type == SELORE_LIGHT_ROLE_HOLE) {
+                        float shrink = 0.0f;
+                        bool hide = false;
 
-                    bool isHidden = o1.type == SELORE_LIGHT_ROLE_HOLE && (visualT > 1 && (!o2.isValid || visualT < 2));
+                        if (o2.isValid) {
+                            float shrinkIn  = SmoothStep(0.90f, 1.10f, visualT);
+                            float shrinkOut = 1.0f - SmoothStep(1.90f, 2.10f, visualT);
+                            shrink = Mathf.Clamp01(shrinkIn * shrinkOut);
+                            hide = visualT > 1.10 && visualT < 1.90;
+                        } else {
+                            shrink = SmoothStep(1.00f, 1.15f, visualT);
+                            hide = visualT > 1.15;
+                        }
 
+                        deformedPosition = Vector3.Lerp(deformedPosition, splinePos, shrink * targetObject._DeformStrength);
+                        
+                        if (hide) {
+                            deformedPosition = nanPosition;
+                        }
+                    }
+                    
                     // Debug visualization
                     Color gizmoColor = new Color(o1.isValid ? 1.0f : 0.0f, o2.isValid ? 1.0f : 0.0f,
                         distanceAlongPenetrator, 1);
-                    if (!isHidden) {
-                        if (meshIsUsed) {
-                            GizmoUtils.DrawArrow(deformedPosition, deformedPosition + deformedNormal * 0.01f,
-                                gizmoColor);
-                            GizmoUtils.DrawSphere(deformedPosition, 0.005f, gizmoColor);
-                        } else {
-                            GizmoUtils.DrawDisc(deformedPosition, splineTangent, 0.01f, gizmoColor);
-                        }
+                    if (meshIsUsed) {
+                        GizmoUtils.DrawArrow(deformedPosition, deformedPosition + deformedNormal * 0.01f,
+                            gizmoColor);
+                        GizmoUtils.DrawSphere(deformedPosition, 0.005f, gizmoColor);
+                    } else {
+                        GizmoUtils.DrawDisc(deformedPosition, splineTangent, 0.01f, gizmoColor);
                     }
                 }
 
