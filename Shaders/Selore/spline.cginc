@@ -139,5 +139,8 @@ void GetCurvePoints(
     p6 = o2.position;
     // Entering orifice 2
     p5 = p6 + (o2Up * handleLen2); // Note: Check direction logic, usually -Up if going into it
+    if (o2.type == SELORE_LIGHT_ROLE_RING_TWOWAY) {
+        p5 = p6 - (o2Up * handleLen1);
+    }
 }
 #endif
