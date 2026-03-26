@@ -1,6 +1,6 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
- *  Copyright (C) 2025 Tayou <git@tayou.org>
+ *  Copyright (C) 2026 Tayou <git@tayou.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
  */
 using System;
 using System.Collections.Generic;
+#if UNITY_EDITOR
+using AnimatorAsCode.V1;
+#endif
 using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
@@ -37,8 +40,8 @@ namespace org.Tayou.AmityEdits {
         public List<ClothingItem> incompatibilities;
         
 #if UNITY_EDITOR
-        public AnimatorControllerParameter ParameterReference;
-        public AnimatorControllerParameter ParameterShadowReference;
+        public AacFlFloatParameter ParameterReference;
+        public AacFlFloatParameter ParameterShadowReference;
         [NonSerialized]
         public VRCExpressionParameters.Parameter VRChatParameterReference;
 #endif

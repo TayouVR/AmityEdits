@@ -17,9 +17,13 @@
  */
 
 using System;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
+using VRC.SDK3.Avatars.Components;
+using VRC.SDK3A.Editor.Elements;
+using ExpressionsMenu = VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu;
 
 namespace org.Tayou.AmityEdits.MenuItem {
     [CustomEditor(typeof(MenuItem))]
@@ -47,13 +51,28 @@ namespace org.Tayou.AmityEdits.MenuItem {
             var pathMethod = new PropertyField(pathMethodProp);
             var parentMenu = new PropertyField(parentMenuProp);
             var menuPath = new PropertyField(menuPathProp);
-            var vrcMenuControl = new PropertyField(vrcMenuControlProp);
             var actionsField = new PropertyField(actionsProp);
             
             root.Add(pathMethod);
             root.Add(parentMenu);
             root.Add(menuPath);
-            root.Add(vrcMenuControl);
+
+            var controlOptionsContainer = new VisualElement();
+            root.Add(controlOptionsContainer);
+
+            void UpdateControlOptions() {
+                controlOptionsContainer.Clear();
+                var menu = _targetComponent.parentMenu ?? _targetComponent.transform.GetComponentsInParent<VRCAvatarDescriptor>().First().expressionsMenu;
+                if (((object)menu) != null) {
+                    var controlOptions = new ExpressionsControlOptions(vrcMenuControlProp, menu);
+                    controlOptionsContainer.Add(controlOptions);
+                } else {
+                    // Fallback to default property field if no menu is available
+                    var vrcMenuControl = new PropertyField(vrcMenuControlProp);
+                    controlOptionsContainer.Add(vrcMenuControl);
+                }
+            }
+
             root.Add(actionsField);
 
             root.Bind(serializedObject);
@@ -78,10 +97,13 @@ namespace org.Tayou.AmityEdits.MenuItem {
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
+                
+                UpdateControlOptions();
             }
 
             // React to changes coming from the UI or from outside (Undo, scripts, etc.)
             root.TrackPropertyValue(pathMethodProp, _ => UpdateVisibility());
+            root.TrackPropertyValue(parentMenuProp, _ => UpdateControlOptions());
 
             // Initialize visibility for the initial value
             UpdateVisibility();

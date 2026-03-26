@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
+using System.Linq;
+using AnimatorAsCode.V1;
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits.EditorUtils;
+using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
     internal static class AnimationSlotActionBuilder {
-        internal static void Build(AnimationSlotAction a, BuildContext ctx, string menuParameterName) {
+        internal static void Build(AnimationSlotAction a, BuildContext ctx, VRCExpressionsMenu.Control menuControl) {
             if (a == null || a.clip == null) return;
             var fx = NdmfCtxUtils.Fx(ctx);
+            var menuParameterName = CommonBuilderUtils.SelectParameter(a.parameterSelection, menuControl);
 
             string baseName = CommonBuilderUtils.Sanitize(a.name ?? a.slotName ?? "AnimSlot");
             string paramName = !string.IsNullOrEmpty(menuParameterName) ? menuParameterName : $"Amity/Menu/{baseName}";
@@ -17,15 +22,43 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
                 var parameters = NdmfCtxUtils.Parameters(ctx);
                 AmityMenuUtils.CreateOrGetVRCParameter(parameters, paramName, VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters.ValueType.Bool, 0, true, true);
             }
-            var animParam = AmityMenuUtils.CreateOrGetAnimatorParameter(fx, paramName, AnimatorControllerParameterType.Bool);
 
-            var layer = fx.NewLayer($"Amity {baseName} Clip");
+            // Initialize Animator As Code.
+            var aac = AacV1.Create(new AacConfiguration
+            {
+                SystemName = $"Amity {baseName} Clip",
+                AnimatorRoot = ctx.AvatarRootTransform,
+                DefaultValueRoot = ctx.AvatarRootTransform,
+                AssetKey = GUID.Generate().ToString(),
+                AssetContainer = ctx.AssetContainer,
+                ContainerMode = AacConfiguration.Container.OnlyWhenPersistenceRequired,
+                AssetContainerProvider = new NDMFContainerProvider(ctx),
+                DefaultsProvider = new AacDefaultsProvider(true)
+            });
+
+            var ctrl = aac.CreateSupportingArbitraryControllerLayer(fx, "");
+            var layer = ctrl.StateMachine;
+
             var playState = layer.NewState("Play");
             var idleState = layer.NewState("Idle");
-            layer.stateMachine.defaultState = idleState;
-            var toPlay = layer.stateMachine.AddAnyStateTransition(playState); toPlay.hasExitTime = false; toPlay.duration = 0; toPlay.AddCondition(AnimatorConditionMode.If, 0, animParam.name);
-            var toIdle = layer.stateMachine.AddAnyStateTransition(idleState); toIdle.hasExitTime = false; toIdle.duration = 0; toIdle.AddCondition(AnimatorConditionMode.IfNot, 0, animParam.name);
-            playState.motion = a.clip;
+            layer.WithDefaultState(idleState);
+
+            var animParam = fx.parameters.FirstOrDefault(p => p != null && p.name == paramName);
+            if (animParam == null) {
+                animParam = AmityMenuUtils.CreateOrGetAnimatorParameter(fx, paramName, AnimatorControllerParameterType.Bool);
+            }
+
+            if (animParam.type == AnimatorControllerParameterType.Float) {
+                var floatParam = ctrl.FloatParameter(animParam.name);
+                idleState.TransitionsTo(playState).When(floatParam.IsGreaterThan(0.01f));
+                playState.TransitionsTo(idleState).When(floatParam.IsLessThan(0.01f));
+            } else {
+                var boolParam = ctrl.BoolParameter(animParam.name);
+                idleState.TransitionsTo(playState).When(boolParam.IsTrue());
+                playState.TransitionsTo(idleState).When(boolParam.IsFalse());
+            }
+
+            playState.WithAnimation(a.clip);
         }
     }
 }

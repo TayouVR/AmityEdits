@@ -17,6 +17,9 @@
  */
 using System;
 using System.Collections.Generic;
+#if UNITY_EDITOR
+using AnimatorAsCode.V1;
+#endif
 using UnityEngine;
 using UnityEngine.Serialization;
 using VRC.SDK3.Avatars.ScriptableObjects;
@@ -29,7 +32,7 @@ namespace org.Tayou.AmityEdits {
         public List<ClothingItem> clothingItems;
         
 #if UNITY_EDITOR
-        public AnimatorControllerParameter ParameterReference;
+        public AacFlFloatParameter ParameterReference;
         [NonSerialized]
         public VRCExpressionParameters.Parameter VRChatParameterReference;
 #endif

@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AnimatorAsCode.V1;
 using AnimatorAsCode.V1.ModularAvatar;
+using AnimatorAsCode.V1.VRC;
 using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;
@@ -40,8 +41,7 @@ namespace org.Tayou.AmityEdits {
         private const string ITEMS_MENU_NAME = "Individual Items";
         private const string PARAMETER_PREFIX = "Amity/Clothing";
         
-        private const string SystemName = "AmityClothingAacSystem";
-        private const bool UseWriteDefaults = true;
+        private const string SystemName = "[Amity] [Clothing]";
         
         private readonly BuildContext _buildContext;
         
@@ -65,20 +65,21 @@ namespace org.Tayou.AmityEdits {
             }
             
             // Initialize Animator As Code.
-            // var aac = AacV1.Create(new AacConfiguration
-            // {
-            //     SystemName = SystemName,
-            //     AnimatorRoot = _buildContext.AvatarRootTransform,
-            //     DefaultValueRoot = _buildContext.AvatarRootTransform,
-            //     AssetKey = GUID.Generate().ToString(),
-            //     AssetContainer = _buildContext.AssetContainer,
-            //     ContainerMode = AacConfiguration.Container.OnlyWhenPersistenceRequired,
-            //     // (For AAC 1.2.0 and above) The next line is recommended starting from NDMF 1.6.0.
-            //     // If you use a lower version of NDMF or if you don't use it, remove that line.
-            //     AssetContainerProvider = new NDMFContainerProvider(_buildContext),
-            //     // States will be created with Write Defaults set to ON or OFF based on whether UseWriteDefaults is true or false.
-            //     DefaultsProvider = new AacDefaultsProvider(UseWriteDefaults)
-            // });
+            var aac = AacV1.Create(new AacConfiguration
+            {
+                SystemName = SystemName,
+                AnimatorRoot = _buildContext.AvatarRootTransform,
+                DefaultValueRoot = _buildContext.AvatarRootTransform,
+                AssetKey = GUID.Generate().ToString(),
+                AssetContainer = _buildContext.AssetContainer,
+                ContainerMode = AacConfiguration.Container.OnlyWhenPersistenceRequired,
+                // (For AAC 1.2.0 and above) The next line is recommended starting from NDMF 1.6.0.
+                // If you use a lower version of NDMF or if you don't use it, remove that line.
+                AssetContainerProvider = new NDMFContainerProvider(_buildContext),
+                // States will be created with Write Defaults set to ON or OFF based on whether UseWriteDefaults is true or false.
+                DefaultsProvider = new AacDefaultsProvider(true)
+            });
+            var ctrl = aac.NewAnimatorController();
             
             // fallback some properties to current gameObject
             foreach (var clothingItemComponent in clothingItemComponents) {
@@ -97,38 +98,37 @@ namespace org.Tayou.AmityEdits {
             var fxController = (AnimatorController)avatarDescriptor.baseAnimationLayers.FirstOrDefault(animatorLayer =>
                 animatorLayer.type == VRCAvatarDescriptor.AnimLayerType.FX).animatorController;
             
-            // parameter that is always 1 for direct blend trees
-            var oneParam = CreateAnimatorParameter(ONE_PARAMETER_NAME, fxController, 1);
-            
             // empty animation clip for empty states
             _emptyClip = new AnimationClip();
 
-            AnimatorControllerLayer defaultStateLayer = fxController.NewLayer("Amity Default State");
+            var defaultStateLayer = ctrl.NewLayer("Default State");
             var defaultResetState = defaultStateLayer.NewState("Reset State");
             
-            AnimatorControllerLayer driverLayer = fxController.NewLayer("Amity Clothing Driver");
-            AnimatorControllerLayer toggleLayer = fxController.NewLayer("Amity Clothing Toggles");
+            var driverLayer = ctrl.NewLayer("Clothing Driver");
+            var toggleLayer = ctrl.NewLayer("Clothing Toggles");
+            
+            // parameter that is always 1 for direct blend trees
+            var oneParam = CreateAnimatorParameter(ONE_PARAMETER_NAME, defaultStateLayer, 1);
             
             // generate Direct BlendTree
-            var directTreeState = toggleLayer.NewDirectTreeState(out var directBlendTree, fxController, "Clothing Toggles");
+            var directBlendTree = aac.NewBlendTree().Direct();
+            var directTreeState = toggleLayer.NewState("Clothing Toggles").WithAnimation(directBlendTree).WithWriteDefaultsSetTo(true);
             
             // generate all parameters before doing animator and menus
             foreach (var clothingItem in clothingItemComponents) {
-                GenerateParameter(clothingItem, fxController, vrcParameterList);
+                GenerateParameter(clothingItem, defaultStateLayer, vrcParameterList);
             }
 
             foreach (var clothingItem in clothingItemComponents) {
                 
                 // generate Clothing Item State
-                AnimatorState onState = driverLayer.NewState(clothingItem.name);
-                var onTransition = driverLayer.stateMachine.AddAnyStateTransition(onState);
-                onTransition.AddCondition(AnimatorConditionMode.Greater, 0.5f, clothingItem.ParameterReference.name);
-                onTransition.AddCondition(AnimatorConditionMode.Less, 0.5f, clothingItem.ParameterShadowReference.name);
-                onTransition.duration = 0f;
-                onTransition.hasExitTime = false;
+                var onState = driverLayer.NewState(clothingItem.name);
+                var onTransition = driverLayer.AnyTransitionsTo(onState).Automatically().WithTransitionDurationSeconds(0).Transition;
+                onTransition.AddCondition(AnimatorConditionMode.Greater, 0.5f, clothingItem.ParameterReference.Name);
+                onTransition.AddCondition(AnimatorConditionMode.Less, 0.5f, clothingItem.ParameterShadowReference.Name);
                 onState.Drives(clothingItem.ParameterReference, 1);
                 onState.Drives(clothingItem.ParameterShadowReference, 1);
-                onState.motion = _emptyClip;
+                onState.WithAnimation(_emptyClip);
                 
                 // handle incompatabilities
                 foreach (var incompatibleItem in clothingItem.incompatibilities) {
@@ -136,14 +136,12 @@ namespace org.Tayou.AmityEdits {
                     onState.Drives(incompatibleItem.ParameterShadowReference, 0);
                 }
                 
-                AnimatorState offState = driverLayer.NewState(clothingItem.name);
-                var offTransition = driverLayer.stateMachine.AddAnyStateTransition(offState);
-                offTransition.AddCondition(AnimatorConditionMode.Less, 0.5f, clothingItem.ParameterReference.name);
-                offTransition.AddCondition(AnimatorConditionMode.Greater, 0.5f, clothingItem.ParameterShadowReference.name);
-                offTransition.duration = 0f;
-                offTransition.hasExitTime = false;
+                var offState = driverLayer.NewState(clothingItem.name);
+                var offTransition = driverLayer.AnyTransitionsTo(offState).Automatically().WithTransitionDurationSeconds(0).Transition;
+                offTransition.AddCondition(AnimatorConditionMode.Less, 0.5f, clothingItem.ParameterReference.Name);
+                offTransition.AddCondition(AnimatorConditionMode.Greater, 0.5f, clothingItem.ParameterShadowReference.Name);
                 offState.Drives(clothingItem.ParameterShadowReference, 0);
-                offState.motion = _emptyClip;
+                offState.WithAnimation(_emptyClip);
                 
                 // build animation
                 switch (clothingItem.actionMethod) {
@@ -159,24 +157,21 @@ namespace org.Tayou.AmityEdits {
                         break;
                 }
 
-                CreateMotionForClothingItem(clothingItem, directBlendTree);
+                CreateMotionForClothingItem(clothingItem, directBlendTree.BlendTree);
                 
                 // build menus
                 AddMenuItem(clothingItem, clothingItemMenu);
             }
             
-            var restAnimation = BuildDefaultRestStateAnimation(clothingItemComponents, defaultResetState);
+            var restAnimation = BuildDefaultRestStateAnimation(clothingItemComponents, defaultResetState.State);
             
             // generate Outfit States
             foreach (var outfit in outfitComponents) {
-                outfit.ParameterReference = CreateAnimatorParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", fxController);
+                outfit.ParameterReference = CreateAnimatorParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", defaultStateLayer);
                 outfit.VRChatParameterReference = CreateVrcParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", avatarDescriptor.expressionParameters);
-                var state = driverLayer.NewState(outfit.name);
-                state.motion = _emptyClip;
-                var transition = driverLayer.stateMachine.AddAnyStateTransition(state);
-                transition.AddCondition(AnimatorConditionMode.Greater, 0.5f, outfit.ParameterReference.name);
-                transition.duration = 0f;
-                transition.hasExitTime = false;
+                var state = driverLayer.NewState(outfit.name).WithAnimation(_emptyClip);
+                var transition = driverLayer.AnyTransitionsTo(state).Automatically().WithTransitionDurationSeconds(0).Transition;
+                transition.AddCondition(AnimatorConditionMode.Greater, 0.5f, outfit.ParameterReference.Name);
                 state.Drives(outfit.ParameterReference, 0);
 
                 foreach (var clothingItem in outfit.clothingItems) {
@@ -188,6 +183,16 @@ namespace org.Tayou.AmityEdits {
                 }
                 AddMenuItem(outfit, outfitMenu);
             }
+
+            // Create a new object in the scene. We will add Modular Avatar components inside it.
+            var modularAvatar = MaAc.Create(new GameObject(SystemName)
+            {
+                transform = { parent = _buildContext.AvatarRootTransform }
+            });
+            
+            // By creating a Modular Avatar Merge Animator component,
+            // our animator controller will be added to the avatar's FX layer.
+            modularAvatar.NewMergeAnimator(ctrl.AnimatorController, VRCAvatarDescriptor.AnimLayerType.FX);
             
             AssetDatabase.SaveAssets();
             Debug.Log("The Clothing Manager pass has finished. \n" +
@@ -195,17 +200,17 @@ namespace org.Tayou.AmityEdits {
                       $"{outfitComponents.Length} parameters for outfits.");
         }
 
-        private void GenerateParameter(ClothingItem clothingItem, AnimatorController fxController, VRCExpressionParameters vrcParameters) {
+        private void GenerateParameter(ClothingItem clothingItem, AacFlLayer layer, VRCExpressionParameters vrcParameters) {
             string parameterName = clothingItem.actionMethod == ItemActionMethod.Parameter 
                                    && !String.IsNullOrEmpty(clothingItem.parameterName) 
                 ? clothingItem.parameterName 
                 : $"{PARAMETER_PREFIX}/{clothingItem.name}";
 
             // animator parameter
-            clothingItem.ParameterReference = CreateAnimatorParameter(parameterName, fxController, clothingItem.defaultState ? 1f : 0f);
+            clothingItem.ParameterReference = CreateAnimatorParameter(parameterName, layer, clothingItem.defaultState ? 1f : 0f);
 
             // animator shadow parameter
-            clothingItem.ParameterShadowReference = CreateAnimatorParameter($"{PARAMETER_PREFIX}/Shadow/{clothingItem.name}", fxController, clothingItem.defaultState ? 1f : 0f);
+            clothingItem.ParameterShadowReference = CreateAnimatorParameter($"{PARAMETER_PREFIX}/Shadow/{clothingItem.name}", layer, clothingItem.defaultState ? 1f : 0f);
 
             // vrchat parameter
             clothingItem.VRChatParameterReference = CreateVrcParameter(parameterName, vrcParameters, clothingItem.defaultState ? 1f : 0f);
@@ -215,22 +220,12 @@ namespace org.Tayou.AmityEdits {
             return AmityMenuUtils.CreateOrGetVRCParameter(vrcParameters, name, VRCExpressionParameters.ValueType.Bool, defaultValue);
         }
 
-        private AnimatorControllerParameter CreateAnimatorParameter(string name, AnimatorController fxController, float defaultValue = 0f) {
-            var animatorParameter = fxController.parameters.ToList().Find(param => param.name == name);
-            if (animatorParameter == null) {
-                animatorParameter = new AnimatorControllerParameter {
-                    name = name,
-                    type = AnimatorControllerParameterType.Float,
-                    defaultFloat = defaultValue,
-                    defaultBool = defaultValue > 0.5f,
-                    defaultInt = (int)Math.Round(defaultValue),
-                };
-            
-                fxController.AddParameter(animatorParameter);
-            }
+        private AacFlFloatParameter CreateAnimatorParameter(string name, AacFlLayer layer, float defaultValue = 0f) {
+            var param = layer.FloatParameter(name);
+            layer.OverrideValue(param, defaultValue);
 
-            Debug.Log($"parameter was generated or already existed - name: {animatorParameter.name}");
-            return animatorParameter;
+            Debug.Log($"parameter was generated - name: {param.Name}");
+            return param;
         }
 
         private void AddMenuItem(ClothingItem clothingItem, VRCExpressionsMenu parentMenu) {
@@ -238,7 +233,7 @@ namespace org.Tayou.AmityEdits {
                 name = clothingItem.name ?? clothingItem.gameObject.name,
                 type = VRCExpressionsMenu.Control.ControlType.Toggle,
                 parameter = new VRCExpressionsMenu.Control.Parameter() {
-                    name = clothingItem.ParameterReference.name,
+                    name = clothingItem.ParameterReference.Name,
                 },
                 value = 1,
             });
@@ -247,9 +242,9 @@ namespace org.Tayou.AmityEdits {
         private void AddMenuItem(Outfit outfit, VRCExpressionsMenu parentMenu) {
             parentMenu.controls.Add(new VRCExpressionsMenu.Control() {
                 name = outfit.name,
-                type = VRCExpressionsMenu.Control.ControlType.Toggle,
+                type = VRCExpressionsMenu.Control.ControlType.Button,
                 parameter = new VRCExpressionsMenu.Control.Parameter() {
-                    name = outfit.ParameterReference.name,
+                    name = outfit.ParameterReference.Name,
                 },
                 value = 1,
             });
@@ -302,7 +297,7 @@ namespace org.Tayou.AmityEdits {
             // motion.AddChild(clothingItem.onAnimation, 1f);
             // AssetDatabase.AddObjectToAsset(motion, directBlendTree);
             // directBlendTree.AddChild(motion, ONE_PARAMETER_NAME);
-            directBlendTree.AddChild(clothingItem.onAnimation, clothingItem.ParameterReference.name);
+            directBlendTree.AddChild(clothingItem.onAnimation, clothingItem.ParameterReference.Name);
         }
 
         private AnimationClip BuildDefaultRestStateAnimation(ClothingItem[] items, AnimatorState defaultState) {

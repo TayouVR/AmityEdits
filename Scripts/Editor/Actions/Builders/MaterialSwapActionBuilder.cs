@@ -1,29 +1,55 @@
 // SPDX-License-Identifier: GPL-3.0-only
+using System.Linq;
+using AnimatorAsCode.V1;
+using AnimatorAsCode.V1.ModularAvatar;
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits.EditorUtils;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
     internal static class MaterialSwapActionBuilder {
-        internal static void Build(MaterialSwapAction a, BuildContext ctx, string menuParameterName) {
+        internal static void Build(MaterialSwapAction a, BuildContext ctx, VRCExpressionsMenu.Control menuControl) {
             if (a == null || a.targetRenderer == null || a.toMaterial == null) return;
             var fx = NdmfCtxUtils.Fx(ctx);
             var avatarRoot = NdmfCtxUtils.AvatarRoot(ctx);
             var assetContainer = NdmfCtxUtils.AssetContainer(ctx);
+            var menuParameterName = CommonBuilderUtils.SelectParameter(a.parameterSelection, menuControl);
 
             string baseName = CommonBuilderUtils.Sanitize(a.name ?? a.targetRenderer.name + "_MatSwap");
             string paramName = !string.IsNullOrEmpty(menuParameterName) ? menuParameterName : $"Amity/Menu/{baseName}";
 
-            var layer = fx.NewLayer($"Amity {baseName} Swap");
+            // Initialize Animator As Code.
+            var aac = AacV1.Create(new AacConfiguration
+            {
+                SystemName = $"Amity {baseName} Swap",
+                AnimatorRoot = ctx.AvatarRootTransform,
+                DefaultValueRoot = ctx.AvatarRootTransform,
+                AssetKey = GUID.Generate().ToString(),
+                AssetContainer = ctx.AssetContainer,
+                ContainerMode = AacConfiguration.Container.OnlyWhenPersistenceRequired,
+                AssetContainerProvider = new NDMFContainerProvider(ctx),
+                DefaultsProvider = new AacDefaultsProvider(true)
+            });
+
+            var ctrl = aac.NewAnimatorController();
+            var layer = ctrl.NewLayer();
+
             var onState = layer.NewState("Swap");
             var offState = layer.NewState("Revert");
-            layer.stateMachine.defaultState = offState;
+            layer.WithDefaultState(offState);
 
-            var animParam = AmityMenuUtils.CreateOrGetAnimatorParameter(fx, paramName, AnimatorControllerParameterType.Bool);
-            var toOn = layer.stateMachine.AddAnyStateTransition(onState); toOn.hasExitTime = false; toOn.duration = 0; toOn.AddCondition(AnimatorConditionMode.If, 0, animParam.name);
-            var toOff = layer.stateMachine.AddAnyStateTransition(offState); toOff.hasExitTime = false; toOff.duration = 0; toOff.AddCondition(AnimatorConditionMode.IfNot, 0, animParam.name);
+            var animParam = fx.parameters.FirstOrDefault(p => p != null && p.name == paramName);
+            if (animParam == null) {
+                animParam = AmityMenuUtils.CreateOrGetAnimatorParameter(fx, paramName, AnimatorControllerParameterType.Bool);
+            }
+
+            var floatParam = layer.FloatParameter(animParam.name);
+            offState.TransitionsTo(onState).When(floatParam.IsGreaterThan(0.01f));
+            onState.TransitionsTo(offState).When(floatParam.IsLessThan(0.01f));
 
             var onClip = new AnimationClip { name = $"swap_{baseName}" };
             var offClip = new AnimationClip { name = $"revert_{baseName}" };
@@ -43,7 +69,17 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             }
             AssetDatabase.AddObjectToAsset(onClip, assetContainer);
             AssetDatabase.AddObjectToAsset(offClip, assetContainer);
-            onState.motion = onClip; offState.motion = offClip;
+            onState.WithAnimation(onClip); offState.WithAnimation(offClip);
+
+            // Create a new object in the scene. We will add Modular Avatar components inside it.
+            var modularAvatar = MaAc.Create(new GameObject($"Amity {baseName} Swap")
+            {
+                transform = { parent = ctx.AvatarRootTransform }
+            });
+            
+            // By creating a Modular Avatar Merge Animator component,
+            // our animator controller will be added to the avatar's FX layer.
+            modularAvatar.NewMergeAnimator(ctrl.AnimatorController, VRCAvatarDescriptor.AnimLayerType.FX);
         }
     }
 }

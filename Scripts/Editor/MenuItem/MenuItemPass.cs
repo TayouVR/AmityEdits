@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using nadena.dev.ndmf;
 using nadena.dev.ndmf.vrchat;
 using UnityEditor.Animations;
@@ -46,18 +48,56 @@ namespace org.Tayou.AmityEdits.MenuItem {
                     AmityMenuUtils.AppendControl(targetMenu, item.vrcMenuControl);
                 }
 
-                // Determine/control parameter name from the menu control, ensure it exists (bool) in expressions and animator
-                string menuParamName = item?.vrcMenuControl?.parameter?.name;
-                if (!string.IsNullOrEmpty(menuParamName)) {
-                    AmityMenuUtils.CreateOrGetVRCParameter(vrcParameters, menuParamName, VRCExpressionParameters.ValueType.Bool, 0, true, true);
-                    AmityMenuUtils.CreateOrGetAnimatorParameter(fxController, menuParamName, AnimatorControllerParameterType.Bool);
+                // Collect and ensure all parameters exist
+                var parametersToEnsure = new List<(string name, VRCExpressionParameters.ValueType expType, AnimatorControllerParameterType animType)>();
+                
+                // Main parameter
+                if (item.vrcMenuControl?.parameter != null && !string.IsNullOrEmpty(item.vrcMenuControl.parameter.name)) {
+                    // For Toggle/Button it's usually bool, but for Radial/Puppet it's float
+                    var type = VRCExpressionParameters.ValueType.Bool;
+                    var animType = AnimatorControllerParameterType.Bool;
+                    
+                    if (item.vrcMenuControl.type == VRCExpressionsMenu.Control.ControlType.RadialPuppet ||
+                        item.vrcMenuControl.type == VRCExpressionsMenu.Control.ControlType.TwoAxisPuppet ||
+                        item.vrcMenuControl.type == VRCExpressionsMenu.Control.ControlType.FourAxisPuppet) {
+                        
+                        // User requested: "main is always a bool (in the vrc list anyways, in the the animator it should stay a float, for use in blendtrees.)"
+                        // This applies to Puppets.
+                        type = VRCExpressionParameters.ValueType.Bool;
+                        animType = AnimatorControllerParameterType.Float;
+                    }
+                    parametersToEnsure.Add((item.vrcMenuControl.parameter.name, type, animType));
+                }
+                
+                // Sub parameters (always float)
+                if (item.vrcMenuControl?.subParameters != null) {
+                    foreach (var subParam in item.vrcMenuControl.subParameters) {
+                        if (subParam != null && !string.IsNullOrEmpty(subParam.name)) {
+                            parametersToEnsure.Add((subParam.name, VRCExpressionParameters.ValueType.Float, AnimatorControllerParameterType.Float));
+                        }
+                    }
                 }
 
-                // Build animator logic for actions using the same parameter name when provided
+                foreach (var (pName, expType, animType) in parametersToEnsure) {
+                    AmityMenuUtils.CreateOrGetVRCParameter(vrcParameters, pName, expType, 0, true, true);
+                    //AmityMenuUtils.CreateOrGetAnimatorParameter(fxController, pName, animType);
+                }
+
+                // Map ParameterSelection to actual parameter names
+                string[] paramNames = new string[5]; // Main, Sub1, Sub2, Sub3, Sub4
+                paramNames[0] = item.vrcMenuControl?.parameter?.name;
+                if (item.vrcMenuControl?.subParameters != null) {
+                    for (int i = 0; i < Math.Min(item.vrcMenuControl.subParameters.Length, 4); i++) {
+                        paramNames[i + 1] = item.vrcMenuControl.subParameters[i]?.name;
+                    }
+                }
+
+                // Build animator logic for actions using the selected parameter
                 if (item.actions != null) {
                     foreach (var action in item.actions) {
+                        if (action == null) continue;
                         try {
-                            action?.BuildFor(_buildContext, menuParamName);
+                            action.BuildFor(_buildContext, item.vrcMenuControl);
                         } catch (System.Exception e) {
                             Debug.LogException(e);
                         }

@@ -37,10 +37,14 @@ namespace org.Tayou.AmityEdits.Actions.Editor {
 
             Type currentType = GetManagedReferenceType(property);
             if (currentType == null) {
-                // If null, ensure a default instance exists
-                if (types.Count > 0) {
-                    SetManagedReferenceToNewInstance(property, types[0]);
-                    currentType = types[0];
+                if (property.propertyType == SerializedPropertyType.ManagedReference) {
+                    // If null, ensure a default instance exists
+                    if (types.Count > 0) {
+                        SetManagedReferenceToNewInstance(property, types[0]);
+                        currentType = types[0];
+                    }
+                } else {
+                    currentType = fieldInfo.FieldType;
                 }
             }
             typeDropdown.value = currentType != null ? currentType.Name : (typeNames.FirstOrDefault() ?? "");
@@ -55,12 +59,26 @@ namespace org.Tayou.AmityEdits.Actions.Editor {
                 }
             });
 
-            root.Add(typeDropdown);
+            if (property.propertyType == SerializedPropertyType.ManagedReference) {
+                root.Add(typeDropdown);
+            }
 
             // Body
             RefreshBody(root, property);
 
+            var parameterSelectionProp = property.FindPropertyRelative("parameterSelection");
+            if (parameterSelectionProp != null) {
+                root.TrackPropertyValue(parameterSelectionProp, _ => RefreshBody(root, property));
+            }
+
             return root;
+        }
+
+        protected VisualElement FindField(VisualElement body, string propName) {
+            foreach (var child in body.Children()) {
+                if (child is PropertyField pf && (pf.bindingPath == propName || pf.bindingPath.EndsWith($".{propName}"))) return pf;
+            }
+            return null;
         }
 
         private static void RefreshBody(VisualElement root, SerializedProperty property) {
@@ -71,9 +89,44 @@ namespace org.Tayou.AmityEdits.Actions.Editor {
             var body = new VisualElement { name = "ActionBodyContainer" };
             body.style.marginTop = 4;
 
+            // Try to find the MenuItem parent to provide better parameter labels
+            var menuItem = property.serializedObject.targetObject as org.Tayou.AmityEdits.MenuItem.MenuItem;
+            string[] parameterLabels = new string[] { "Main", "Sub1", "Sub2", "Sub3", "Sub4" };
+            if (menuItem != null && menuItem.vrcMenuControl != null) {
+                if (menuItem.vrcMenuControl.parameter != null && !string.IsNullOrEmpty(menuItem.vrcMenuControl.parameter.name)) {
+                    parameterLabels[0] = $"Main ({menuItem.vrcMenuControl.parameter.name})";
+                }
+                if (menuItem.vrcMenuControl.subParameters != null) {
+                    for (int i = 0; i < Math.Min(menuItem.vrcMenuControl.subParameters.Length, 4); i++) {
+                        var sp = menuItem.vrcMenuControl.subParameters[i];
+                        if (sp != null && !string.IsNullOrEmpty(sp.name)) {
+                            parameterLabels[i+1] = $"Sub{i+1} ({sp.name})";
+                        }
+                    }
+                }
+            }
+
             foreach (var child in EnumerateChildren(property)) {
                 if (child.name == "name") continue; // already drawn
-                var field = new PropertyField(child);
+                
+                PropertyField field;
+                if (child.type == typeof(ParameterSelection).ToString()) {
+                    var dropdown = new PopupField<ParameterSelection>(
+                        "Parameter Selection",
+                        new List<ParameterSelection> { ParameterSelection.Main, ParameterSelection.Sub1, ParameterSelection.Sub2, ParameterSelection.Sub3, ParameterSelection.Sub4 },
+                        (ParameterSelection)child.enumValueIndex,
+                        (val) => parameterLabels[(int)val],
+                        (val) => parameterLabels[(int)val]
+                    );
+                    dropdown.RegisterValueChangedCallback(evt => {
+                        child.enumValueIndex = (int)evt.newValue;
+                        child.serializedObject.ApplyModifiedProperties();
+                    });
+                    body.Add(dropdown);
+                    continue;
+                }
+                
+                field = new PropertyField(child);
                 field.Bind(property.serializedObject);
                 body.Add(field);
             }
@@ -96,6 +149,7 @@ namespace org.Tayou.AmityEdits.Actions.Editor {
         }
 
         private static Type GetManagedReferenceType(SerializedProperty property) {
+            if (property.propertyType != SerializedPropertyType.ManagedReference) return null;
             var fullTypeName = property.managedReferenceFullTypename;
             if (string.IsNullOrEmpty(fullTypeName)) return null;
             // Format is: AssemblyName TypeFullName

@@ -1,45 +1,69 @@
 // SPDX-License-Identifier: GPL-3.0-only
+using System.Linq;
+using AnimatorAsCode.V1;
+using AnimatorAsCode.V1.ModularAvatar;
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits.EditorUtils;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
     internal static class ComponentToggleActionBuilder {
-        internal static void Build(ComponentToggleAction a, BuildContext ctx, string menuParameterName) {
+        internal static void Build(ComponentToggleAction a, BuildContext ctx, VRCExpressionsMenu.Control menuControl) {
             if (a == null || a.component == null) return;
             var fx = NdmfCtxUtils.Fx(ctx);
             var avatarRoot = NdmfCtxUtils.AvatarRoot(ctx);
             var assetContainer = NdmfCtxUtils.AssetContainer(ctx);
             var parameters = NdmfCtxUtils.Parameters(ctx);
+            var menuParameterName = CommonBuilderUtils.SelectParameter(a.parameterSelection, menuControl);
 
             string baseName = CommonBuilderUtils.Sanitize(a.name ?? a.component.name);
-            string paramName = !string.IsNullOrEmpty(menuParameterName) ? menuParameterName : $"Amity/Menu/{baseName}";
 
             if (string.IsNullOrEmpty(menuParameterName)) {
-                AmityMenuUtils.CreateOrGetVRCParameter(parameters, paramName, VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters.ValueType.Bool, 0, true, true);
+                AmityMenuUtils.CreateOrGetVRCParameter(parameters, menuParameterName, VRCExpressionParameters.ValueType.Bool, 0, true, true);
             }
-            var animParam = AmityMenuUtils.CreateOrGetAnimatorParameter(fx, paramName, AnimatorControllerParameterType.Bool);
 
-            var layer = fx.NewLayer($"Amity {baseName} Component");
-            var onState = layer.NewState("Enabled");
-            var offState = layer.NewState("Disabled");
-            layer.stateMachine.defaultState = offState;
-            var toOn = layer.stateMachine.AddAnyStateTransition(onState); toOn.hasExitTime = false; toOn.duration = 0; toOn.AddCondition(AnimatorConditionMode.If, 0, animParam.name);
-            var toOff = layer.stateMachine.AddAnyStateTransition(offState); toOff.hasExitTime = false; toOff.duration = 0; toOff.AddCondition(AnimatorConditionMode.IfNot, 0, animParam.name);
+            // Initialize Animator As Code.
+            var aac = AacV1.Create(new AacConfiguration
+            {
+                SystemName = $"Amity {menuParameterName} Component",
+                AnimatorRoot = ctx.AvatarRootTransform,
+                DefaultValueRoot = ctx.AvatarRootTransform,
+                AssetKey = GUID.Generate().ToString(),
+                AssetContainer = ctx.AssetContainer,
+                ContainerMode = AacConfiguration.Container.OnlyWhenPersistenceRequired,
+                AssetContainerProvider = new NDMFContainerProvider(ctx),
+                DefaultsProvider = new AacDefaultsProvider(true)
+            });
 
-            string path = AmityMenuUtils.RelativePath(avatarRoot, a.component.transform);
-            var onClip = new AnimationClip { name = $"on_{baseName}" };
-            var offClip = new AnimationClip { name = $"off_{baseName}" };
-            var onCurve = new AnimationCurve(); onCurve.AddKey(0f, 1f);
-            var offCurve = new AnimationCurve(); offCurve.AddKey(0f, 0f);
-            var binding = new EditorCurveBinding { path = path, propertyName = "m_Enabled", type = a.component.GetType() };
-            AnimationUtility.SetEditorCurve(onClip, binding, onCurve);
-            AnimationUtility.SetEditorCurve(offClip, binding, offCurve);
-            AssetDatabase.AddObjectToAsset(onClip, assetContainer);
-            AssetDatabase.AddObjectToAsset(offClip, assetContainer);
-            onState.motion = onClip; offState.motion = offClip;
+            var ctrl = aac.NewAnimatorController();
+            var layer = ctrl.NewLayer();
+
+            var onClip = aac.NewClip($"on_{baseName}").TogglingComponent(a.component, true);
+            var offClip = aac.NewClip($"off_{baseName}").TogglingComponent(a.component, false);
+
+            var floatParam = layer.FloatParameter(menuParameterName);
+            var blendTree = aac.NewBlendTree()
+                .Simple1D(floatParam)
+                .WithAnimation(offClip, 0)
+                .WithAnimation(onClip, 1);
+            
+            var blendTreeState = layer.NewState("Toggle").WithWriteDefaultsSetTo(true);
+            blendTreeState.WithAnimation(blendTree);
+            layer.WithDefaultState(blendTreeState);
+
+            // Create a new object in the scene. We will add Modular Avatar components inside it.
+            var modularAvatar = MaAc.Create(new GameObject($"Amity {menuParameterName} Component")
+            {
+                transform = { parent = ctx.AvatarRootTransform }
+            });
+            
+            // By creating a Modular Avatar Merge Animator component,
+            // our animator controller will be added to the avatar's FX layer.
+            modularAvatar.NewMergeAnimator(ctrl.AnimatorController, VRCAvatarDescriptor.AnimLayerType.FX);
         }
     }
 }
