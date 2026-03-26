@@ -123,7 +123,7 @@ namespace org.Tayou.AmityEdits {
                 
                 // generate Clothing Item State
                 var onState = driverLayer.NewState(clothingItem.name);
-                var onTransition = driverLayer.AnyTransitionsTo(onState).Automatically().WithTransitionDurationSeconds(0).Transition;
+                var onTransition = driverLayer.AnyTransitionsTo(onState).Transition;
                 onTransition.AddCondition(AnimatorConditionMode.Greater, 0.5f, clothingItem.ParameterReference.Name);
                 onTransition.AddCondition(AnimatorConditionMode.Less, 0.5f, clothingItem.ParameterShadowReference.Name);
                 onState.Drives(clothingItem.ParameterReference, 1);
@@ -137,7 +137,7 @@ namespace org.Tayou.AmityEdits {
                 }
                 
                 var offState = driverLayer.NewState(clothingItem.name);
-                var offTransition = driverLayer.AnyTransitionsTo(offState).Automatically().WithTransitionDurationSeconds(0).Transition;
+                var offTransition = driverLayer.AnyTransitionsTo(offState).Transition;
                 offTransition.AddCondition(AnimatorConditionMode.Less, 0.5f, clothingItem.ParameterReference.Name);
                 offTransition.AddCondition(AnimatorConditionMode.Greater, 0.5f, clothingItem.ParameterShadowReference.Name);
                 offState.Drives(clothingItem.ParameterShadowReference, 0);
@@ -170,7 +170,7 @@ namespace org.Tayou.AmityEdits {
                 outfit.ParameterReference = CreateAnimatorParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", defaultStateLayer);
                 outfit.VRChatParameterReference = CreateVrcParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", avatarDescriptor.expressionParameters);
                 var state = driverLayer.NewState(outfit.name).WithAnimation(_emptyClip);
-                var transition = driverLayer.AnyTransitionsTo(state).Automatically().WithTransitionDurationSeconds(0).Transition;
+                var transition = driverLayer.AnyTransitionsTo(state).Transition;
                 transition.AddCondition(AnimatorConditionMode.Greater, 0.5f, outfit.ParameterReference.Name);
                 state.Drives(outfit.ParameterReference, 0);
 
