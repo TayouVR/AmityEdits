@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
@@ -19,6 +19,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AnimatorAsCode.V1;
+using AnimatorAsCode.V1.ModularAvatar;
 using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;
@@ -37,6 +39,9 @@ namespace org.Tayou.AmityEdits {
         private const string OUTFITS_MENU_NAME = "Outfits";
         private const string ITEMS_MENU_NAME = "Individual Items";
         private const string PARAMETER_PREFIX = "Amity/Clothing";
+        
+        private const string SystemName = "AmityClothingAacSystem";
+        private const bool UseWriteDefaults = true;
         
         private readonly BuildContext _buildContext;
         
@@ -58,6 +63,22 @@ namespace org.Tayou.AmityEdits {
                 Debug.Log("The Clothing Manager didn't find any components and is returning");
                 return;
             }
+            
+            // Initialize Animator As Code.
+            // var aac = AacV1.Create(new AacConfiguration
+            // {
+            //     SystemName = SystemName,
+            //     AnimatorRoot = _buildContext.AvatarRootTransform,
+            //     DefaultValueRoot = _buildContext.AvatarRootTransform,
+            //     AssetKey = GUID.Generate().ToString(),
+            //     AssetContainer = _buildContext.AssetContainer,
+            //     ContainerMode = AacConfiguration.Container.OnlyWhenPersistenceRequired,
+            //     // (For AAC 1.2.0 and above) The next line is recommended starting from NDMF 1.6.0.
+            //     // If you use a lower version of NDMF or if you don't use it, remove that line.
+            //     AssetContainerProvider = new NDMFContainerProvider(_buildContext),
+            //     // States will be created with Write Defaults set to ON or OFF based on whether UseWriteDefaults is true or false.
+            //     DefaultsProvider = new AacDefaultsProvider(UseWriteDefaults)
+            // });
             
             // fallback some properties to current gameObject
             foreach (var clothingItemComponent in clothingItemComponents) {
