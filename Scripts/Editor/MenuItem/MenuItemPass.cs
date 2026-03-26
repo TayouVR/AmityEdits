@@ -18,10 +18,11 @@ namespace org.Tayou.AmityEdits.MenuItem {
         }
 
         public void Process() {
-            Debug.Log("The Menu Item pass is running");
             var baseAvatarObject = _buildContext.AvatarRootObject;
             var avatarDescriptor = _buildContext.VRChatAvatarDescriptor();
             MenuItem[] menuItems = baseAvatarObject.GetComponentsInChildren<MenuItem>(true);
+            
+            Debug.Log($"The Menu Item pass is processing {menuItems?.Length ?? 0} menu items");
             if (menuItems == null || menuItems.Length == 0) return;
 
             // Ensure we operate on duplicated descriptor assets
@@ -31,6 +32,9 @@ namespace org.Tayou.AmityEdits.MenuItem {
             // Build actions directly using NDMF BuildContext
             foreach (var item in menuItems) {
                 if (item == null) continue;
+                
+                Debug.Log($"Building menu item: {item.name}");
+                
                 // Append control to appropriate menu
                 VRCExpressionsMenu targetMenu = null;
                 if (item.pathMethod == PathMethod.Parent) {

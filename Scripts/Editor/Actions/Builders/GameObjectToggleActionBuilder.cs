@@ -14,7 +14,7 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             var assetContainer = NdmfCtxUtils.AssetContainer(ctx);
             var parameters = NdmfCtxUtils.Parameters(ctx);
 
-            string baseName = CommonBuilderUtils.Sanitize(a.name ?? a.target.name);
+            string baseName = CommonBuilderUtils.Sanitize(menuParameterName);
             string paramName = !string.IsNullOrEmpty(menuParameterName) ? menuParameterName : $"Amity/Menu/{baseName}";
 
             if (string.IsNullOrEmpty(menuParameterName)) {

@@ -48,6 +48,8 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             AssetDatabase.AddObjectToAsset(clip, assetContainer);
             onState.motion = clip;
             offState.motion = null;
+            
+            Debug.Log($"MaterialPropertyActionBuilder: Created animation clip for material property: {a.propertyName}");
         }
     }
 }

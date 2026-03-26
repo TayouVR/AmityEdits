@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
@@ -57,6 +57,16 @@ namespace org.Tayou.AmityEdits {
             if (clothingItemComponents.Length == 0 && outfitComponents.Length == 0) {
                 Debug.Log("The Clothing Manager didn't find any components and is returning");
                 return;
+            }
+            
+            // fallback some properties to current gameObject
+            foreach (var clothingItemComponent in clothingItemComponents) {
+                clothingItemComponent.name = clothingItemComponent.name.Length <= 0 
+                    ? clothingItemComponent.gameObject.name
+                    : clothingItemComponent.name;
+                clothingItemComponent.objectToToggle = (clothingItemComponent.objectToToggle as object) == null 
+                    ? clothingItemComponent.gameObject
+                    : clothingItemComponent.objectToToggle;
             }
             
             EnsureDescriptorAssetsDuplicated(avatarDescriptor, out var vrcParameterList, out var rootMenu);
@@ -204,7 +214,7 @@ namespace org.Tayou.AmityEdits {
 
         private void AddMenuItem(ClothingItem clothingItem, VRCExpressionsMenu parentMenu) {
             parentMenu.controls.Add(new VRCExpressionsMenu.Control() {
-                name = clothingItem.name,
+                name = clothingItem.name ?? clothingItem.gameObject.name,
                 type = VRCExpressionsMenu.Control.ControlType.Toggle,
                 parameter = new VRCExpressionsMenu.Control.Parameter() {
                     name = clothingItem.ParameterReference.name,
