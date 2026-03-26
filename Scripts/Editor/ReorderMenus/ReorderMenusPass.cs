@@ -41,6 +41,9 @@ namespace org.Tayou.AmityEdits {
             var rootMenu = avatarDescriptor.expressionsMenu;
             var components = avatarDescriptor.GetComponentsInChildren<ReorderMenus>(true);
 
+            var nextText = "Next";
+            var nextIcon = null as Texture2D;
+            
             //if (components.Length == 0 || rootMenu == null) return;
 
             var menuOperations = components.SelectMany(a => a.MenuOperations);
@@ -61,12 +64,13 @@ namespace org.Tayou.AmityEdits {
             //     
             // }
             
-            // TODO: deduplicate "next page" menus
-            // TODO: make sure max menu size is respected (8 per page) 
-            
-            
             GetVRCFFields(avatarDescriptor, out string vrcfNextText, out var vrcfNextIcon );
             
+            nextText ??= vrcfNextText;
+            nextIcon ??= vrcfNextIcon;
+            
+            // TODO: deduplicate "next page" menus
+            // TODO: make sure max menu size is respected (8 per page) 
             
             
         }
