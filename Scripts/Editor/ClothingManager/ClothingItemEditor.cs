@@ -105,6 +105,14 @@ namespace org.Tayou.AmityEdits {
 
             // React to changes coming from the UI or from outside (Undo, scripts, etc.)
             root.TrackPropertyValue(actionProp, _ => UpdateVisibility());
+            
+            incompatibilitiesField.TrackPropertyValue(incompatibilitiesProp, _ => {
+                foreach (var clothingItem in _targetComponent.incompatibilities) {
+                    if (!clothingItem.incompatibilities.Contains(_targetComponent)) {
+                        clothingItem.incompatibilities.Add(_targetComponent);
+                    }
+                }
+            });
 
             // Initialize visibility for the initial value
             UpdateVisibility();
