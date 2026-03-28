@@ -45,7 +45,7 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             var onClip = aac.NewClip($"on_{baseName}").TogglingComponent(a.component, true);
             var offClip = aac.NewClip($"off_{baseName}").TogglingComponent(a.component, false);
 
-            var floatParam = layer.FloatParameter(menuParameterName);
+            var floatParam = layer.FloatParameter(menuParameterName, 0);
             var blendTree = aac.NewBlendTree()
                 .Simple1D(floatParam)
                 .WithAnimation(offClip, 0)

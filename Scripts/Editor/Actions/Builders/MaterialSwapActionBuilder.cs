@@ -47,7 +47,7 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
                 animParam = AmityMenuUtils.CreateOrGetAnimatorParameter(fx, paramName, AnimatorControllerParameterType.Bool);
             }
 
-            var floatParam = layer.FloatParameter(animParam.name);
+            var floatParam = layer.FloatParameter(animParam.name, 0);
             offState.TransitionsTo(onState).When(floatParam.IsGreaterThan(0.01f));
             onState.TransitionsTo(offState).When(floatParam.IsLessThan(0.01f));
 

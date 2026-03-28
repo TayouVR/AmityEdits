@@ -48,15 +48,9 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
                 animParam = AmityMenuUtils.CreateOrGetAnimatorParameter(fx, paramName, AnimatorControllerParameterType.Bool);
             }
 
-            if (animParam.type == AnimatorControllerParameterType.Float) {
-                var floatParam = ctrl.FloatParameter(animParam.name);
-                idleState.TransitionsTo(playState).When(floatParam.IsGreaterThan(0.01f));
-                playState.TransitionsTo(idleState).When(floatParam.IsLessThan(0.01f));
-            } else {
-                var boolParam = ctrl.BoolParameter(animParam.name);
-                idleState.TransitionsTo(playState).When(boolParam.IsTrue());
-                playState.TransitionsTo(idleState).When(boolParam.IsFalse());
-            }
+            var floatParam = ctrl.FloatParameter(animParam.name, 0);
+            idleState.TransitionsTo(playState).When(floatParam.IsGreaterThan(0.01f));
+            playState.TransitionsTo(idleState).When(floatParam.IsLessThan(0.01f));
 
             playState.WithAnimation(a.clip);
         }

@@ -19,6 +19,19 @@ namespace org.Tayou.AmityEdits.EditorUtils {
         public static Object AssetContainer(BuildContext ctx) => ctx.AssetContainer;
         public static AnimatorController Fx(BuildContext ctx) => AmityMenuUtils.EnsureFxController(Descriptor(ctx));
         public static VRCExpressionParameters Parameters(BuildContext ctx) => Descriptor(ctx).expressionParameters;
+
+        // AAC stuff
+        public static AacFlFloatParameter FloatParameter(this AacFlLayer layer, string paramName, float defaultValue = 0) {
+            var param = layer.FloatParameter(paramName);
+            layer.OverrideValue(param, defaultValue);
+            return param;
+        }
+        
+        public static AacFlBoolParameter BoolParameter(this AacFlLayer layer, string paramName, bool defaultValue = false) {
+            var param = layer.BoolParameter(paramName);
+            layer.OverrideValue(param, defaultValue);
+            return param;
+        }
     }
     
     // (For AAC 1.2.0 and above) This is recommended starting from NDMF 1.6.0. You only need to define this class once.
