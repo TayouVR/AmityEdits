@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2023 Tayou <git@tayou.org>
  *
@@ -73,7 +73,6 @@ namespace org.Tayou.AmityEdits {
             
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
-            sequence.Run("Move Object", ctx => new MoveObjectPass(ctx).Process());
             sequence.Run("Reorder Menus", ctx => new ReorderMenusPass(ctx).Process());
             
             sequence = InPhase(BuildPhase.Optimizing);
