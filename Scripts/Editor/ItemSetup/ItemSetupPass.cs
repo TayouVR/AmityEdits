@@ -17,27 +17,20 @@
  */
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using UnityEditor;
-using UnityEditor.Build.Reporting;
+using AnimatorAsCode.V1;
 using UnityEngine;
 using nadena.dev.ndmf;
 using UnityEngine.Animations;
 
 namespace org.Tayou.AmityEdits {
     
-    public class ItemSetupPass {
+    public class ItemSetupPass : Pass<ItemSetupPass> {
+        public override string QualifiedName => "org.Tayou.AmityEdits.ItemSetups";
+        public override string DisplayName => "Item Setups";
         
-        private readonly BuildContext _buildContext;
-
-        public ItemSetupPass(BuildContext context) {
-            _buildContext = context;
-        }
-        
-        public void Process() {
-            var avatarDescriptor = _buildContext.AvatarDescriptor;
+        protected override void Execute(BuildContext ctx) {
             var itemSetupComponents =
-                avatarDescriptor.GetComponentsInChildren<ItemSetup>(true);
+                ctx.AvatarRootTransform.GetComponentsInChildren<ItemSetup>(true);
 
             if (itemSetupComponents.Length == 0) return;
 
@@ -66,7 +59,5 @@ namespace org.Tayou.AmityEdits {
 
             }
         }
-
-
     }
 }

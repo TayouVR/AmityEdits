@@ -28,20 +28,17 @@ using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits {
     
-    public class ReorderMenusPass {
+    public class ReorderMenusPass : Pass<ReorderMenusPass> {
+        public override string QualifiedName => "org.Tayou.AmityEdits.ReorderMenusPass";
+        public override string DisplayName => "Reorder Menus Pass";
         
-        private readonly BuildContext _buildContext;
         // private static Texture2D _moreIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(
         //     "Packages/nadena.dev.modular-avatar/Runtime/Icons/Icon_More_A.png"
         // );
         private static readonly string[] nextPageButtonNames = {"Next", "More", "Next Page"};
 
-        public ReorderMenusPass(BuildContext context) {
-            _buildContext = context;
-        }
-
-        public void Process() {
-            var avatarDescriptor = _buildContext.VRChatAvatarDescriptor();
+        protected override void Execute(BuildContext ctx) {
+            var avatarDescriptor = ctx.VRChatAvatarDescriptor();
             var rootMenu = avatarDescriptor.expressionsMenu;
             var components = avatarDescriptor.GetComponentsInChildren<ReorderMenus>(true);
             var menuOptionsComponents = avatarDescriptor.GetComponentsInChildren<MenuOptions>(true);

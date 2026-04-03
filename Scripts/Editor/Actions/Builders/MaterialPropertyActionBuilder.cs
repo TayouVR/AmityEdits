@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
-using System.Linq;
 using AnimatorAsCode.V1;
-using AnimatorAsCode.V1.ModularAvatar;
+using nadena.dev.modular_avatar.core;
 using nadena.dev.ndmf;
-using org.Tayou.AmityEdits.Actions;
-using org.Tayou.AmityEdits.Actions.Editor.Builders;
 using org.Tayou.AmityEdits.EditorUtils;
+using org.Tayou.AmityEdits.Internal;
 using UnityEditor;
-using UnityEditor.Animations;
 using UnityEngine;
-using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
@@ -43,7 +39,7 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
 
             var clip = CreateCurvedClip(a, avatarRoot, aac.NewClip($"mat_{paramName}"));
 
-            var floatParam = layer.FloatParameter(paramName);
+            var floatParam = layer.FloatParameter(paramName, 0);
             var directBlendTree = aac.NewBlendTree().Direct().WithAnimation(clip, floatParam);
 
             layer.NewState("Apply").WithAnimation(directBlendTree);
@@ -51,14 +47,17 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             Debug.Log($"MaterialPropertyActionBuilder: Created animator logic for material property: {a.propertyName}");
 
             // Create a new object in the scene. We will add Modular Avatar components inside it.
-            var modularAvatar = MaAc.Create(new GameObject($"Amity MatProp {paramName}")
-            {
+            var maGameObject = new GameObject($"Amity MatProp {paramName}") {
                 transform = { parent = ctx.AvatarRootTransform }
-            });
-            
-            // By creating a Modular Avatar Merge Animator component,
-            // our animator controller will be added to the avatar's FX layer.
-            modularAvatar.NewMergeAnimator(ctrl.AnimatorController, VRCAvatarDescriptor.AnimLayerType.FX);
+            };
+            var mergeBlendTree = maGameObject.AddComponent<MotionMerger>();
+            mergeBlendTree.Motion = directBlendTree.BlendTree;
+            mergeBlendTree.LayerPriority = int.MinValue + 100;
+            // var modularAvatar = MaAc.Create(maGameObject);
+            //
+            // // By creating a Modular Avatar Merge Animator component,
+            // // our animator controller will be added to the avatar's FX layer.
+            // modularAvatar.NewMergeAnimator(ctrl.AnimatorController, VRCAvatarDescriptor.AnimLayerType.FX);
         }
 
         private static AacFlClip CreateCurvedClip(MaterialPropertyAction a, Transform avatarRoot, AacFlClip clip) {

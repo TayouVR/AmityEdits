@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
     public class Utils {
-        
 
         // Helper to compare two curves for equality (keys and their properties)
         public static bool CurvesEqual(AnimationCurve a, AnimationCurve b) {
@@ -80,6 +79,5 @@ namespace org.Tayou.AmityEdits {
                    || EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneOSX
                    || EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneLinux64;
         }
-
     }
 }

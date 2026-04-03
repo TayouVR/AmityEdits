@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 using nadena.dev.ndmf;
-using org.Tayou.AmityEdits.Actions;
+using UnityEngine;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
@@ -23,6 +23,7 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
                     AnimationSlotActionBuilder.Build(a, ctx, menuControl);
                     break;
                 default:
+                    Debug.LogWarning($"[Amity] No builder for action type {action?.GetType().Name}");
                     // no-op
                     break;
             }

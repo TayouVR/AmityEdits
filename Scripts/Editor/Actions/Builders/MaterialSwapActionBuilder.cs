@@ -4,6 +4,7 @@ using AnimatorAsCode.V1;
 using AnimatorAsCode.V1.ModularAvatar;
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits.EditorUtils;
+using org.Tayou.AmityEdits.Internal;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -76,6 +77,9 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             {
                 transform = { parent = ctx.AvatarRootTransform }
             });
+            // var mergeBlendTree = a.targetRenderer.gameObject.AddComponent<MotionMerger>();
+            // mergeBlendTree.Motion = directBlendTree.BlendTree;
+            // mergeBlendTree.LayerPriority = int.MinValue + 100;
             
             // By creating a Modular Avatar Merge Animator component,
             // our animator controller will be added to the avatar's FX layer.

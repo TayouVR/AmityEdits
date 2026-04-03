@@ -22,20 +22,24 @@ using System.Linq;
 using AnimatorAsCode.V1;
 using AnimatorAsCode.V1.ModularAvatar;
 using AnimatorAsCode.V1.VRC;
+using nadena.dev.modular_avatar.core;
 using UnityEditor;
 using UnityEngine;
 using nadena.dev.ndmf;
+using nadena.dev.ndmf.animator;
 using nadena.dev.ndmf.vrchat;
 using org.Tayou.AmityEdits.EditorUtils;
+using org.Tayou.AmityEdits.Internal;
 using UnityEditor.Animations;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace org.Tayou.AmityEdits {
     
-    public class ClothingManagerPass {
+    public class ClothingManagerPass : Pass<ClothingManagerPass> {
+        public override string QualifiedName => "org.Tayou.AmityEdits.ClothingManager";
+        public override string DisplayName => "Clothing Manager";
 
-        private const string ONE_PARAMETER_NAME = "Amity/Internal/One";
         private const string MENU_NAME = "Clothing";
         private const string OUTFITS_MENU_NAME = "Outfits";
         private const string ITEMS_MENU_NAME = "Individual Items";
@@ -43,19 +47,13 @@ namespace org.Tayou.AmityEdits {
         
         private const string SystemName = "[Amity] [Clothing]";
         
-        private readonly BuildContext _buildContext;
-        
         // during build data. will be null outside of build
         AnimationClip _emptyClip;
-
-        public ClothingManagerPass(BuildContext context) {
-            _buildContext = context;
-        }
         
-        public void Process() {
+        protected override void Execute(BuildContext ctx) {
             Debug.Log("The Clothing Manager pass is running");
-            var baseAvatarObject = _buildContext.AvatarRootObject;
-            var avatarDescriptor = _buildContext.VRChatAvatarDescriptor();
+            var baseAvatarObject = ctx.AvatarRootObject;
+            var avatarDescriptor = ctx.VRChatAvatarDescriptor();
             ClothingItem[] clothingItemComponents = baseAvatarObject.GetComponentsInChildren<ClothingItem>(true);
             Outfit[] outfitComponents = baseAvatarObject.GetComponentsInChildren<Outfit>(true);
 
@@ -68,14 +66,14 @@ namespace org.Tayou.AmityEdits {
             var aac = AacV1.Create(new AacConfiguration
             {
                 SystemName = SystemName,
-                AnimatorRoot = _buildContext.AvatarRootTransform,
-                DefaultValueRoot = _buildContext.AvatarRootTransform,
+                AnimatorRoot = ctx.AvatarRootTransform,
+                DefaultValueRoot = ctx.AvatarRootTransform,
                 AssetKey = GUID.Generate().ToString(),
-                AssetContainer = _buildContext.AssetContainer,
+                AssetContainer = ctx.AssetContainer,
                 ContainerMode = AacConfiguration.Container.OnlyWhenPersistenceRequired,
                 // (For AAC 1.2.0 and above) The next line is recommended starting from NDMF 1.6.0.
                 // If you use a lower version of NDMF or if you don't use it, remove that line.
-                AssetContainerProvider = new NDMFContainerProvider(_buildContext),
+                AssetContainerProvider = new NDMFContainerProvider(ctx),
                 // States will be created with Write Defaults set to ON or OFF based on whether UseWriteDefaults is true or false.
                 DefaultsProvider = new AacDefaultsProvider(true)
             });
@@ -83,7 +81,7 @@ namespace org.Tayou.AmityEdits {
             
             // fallback some properties to current gameObject
             foreach (var clothingItemComponent in clothingItemComponents) {
-                clothingItemComponent.name = clothingItemComponent.name.Length <= 0 
+                clothingItemComponent.name = String.IsNullOrEmpty(clothingItemComponent.name) 
                     ? clothingItemComponent.gameObject.name
                     : clothingItemComponent.name;
                 clothingItemComponent.objectToToggle = (clothingItemComponent.objectToToggle as object) == null 
@@ -100,23 +98,15 @@ namespace org.Tayou.AmityEdits {
             
             // empty animation clip for empty states
             _emptyClip = new AnimationClip();
-
-            var defaultStateLayer = ctrl.NewLayer("Default State");
-            var defaultResetState = defaultStateLayer.NewState("Reset State");
             
             var driverLayer = ctrl.NewLayer("Clothing Driver");
-            var toggleLayer = ctrl.NewLayer("Clothing Toggles");
-            
-            // parameter that is always 1 for direct blend trees
-            var oneParam = CreateAnimatorParameter(ONE_PARAMETER_NAME, defaultStateLayer, 1);
             
             // generate Direct BlendTree
             var directBlendTree = aac.NewBlendTree().Direct();
-            var directTreeState = toggleLayer.NewState("Clothing Toggles").WithAnimation(directBlendTree).WithWriteDefaultsSetTo(true);
             
             // generate all parameters before doing animator and menus
             foreach (var clothingItem in clothingItemComponents) {
-                GenerateParameter(clothingItem, defaultStateLayer, vrcParameterList);
+                GenerateParameter(clothingItem, driverLayer, vrcParameterList);
             }
 
             foreach (var clothingItem in clothingItemComponents) {
@@ -146,7 +136,7 @@ namespace org.Tayou.AmityEdits {
                 // build animation
                 switch (clothingItem.actionMethod) {
                     case ItemActionMethod.ObjectToggle:
-                        GenerateObjectToggle(clothingItem, baseAvatarObject);
+                        GenerateObjectToggle(clothingItem, ctx);
                         break;
                     case ItemActionMethod.AmityAction:
                         // amity actions don't exist yet
@@ -163,11 +153,11 @@ namespace org.Tayou.AmityEdits {
                 AddMenuItem(clothingItem, clothingItemMenu);
             }
             
-            var restAnimation = BuildDefaultRestStateAnimation(clothingItemComponents, defaultResetState.State);
+            var restAnimation = BuildDefaultRestStateAnimation(clothingItemComponents, ctx);
             
             // generate Outfit States
             foreach (var outfit in outfitComponents) {
-                outfit.ParameterReference = CreateAnimatorParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", defaultStateLayer);
+                outfit.ParameterReference = CreateAnimatorParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", driverLayer);
                 outfit.VRChatParameterReference = CreateVrcParameter($"{PARAMETER_PREFIX}/Outfit/{outfit.name}", avatarDescriptor.expressionParameters);
                 var state = driverLayer.NewState(outfit.name).WithAnimation(_emptyClip);
                 var transition = driverLayer.AnyTransitionsTo(state).Transition;
@@ -184,11 +174,19 @@ namespace org.Tayou.AmityEdits {
                 AddMenuItem(outfit, outfitMenu);
             }
 
+            //Utils.MergeMotionInSecondLayer(_buildContext, new MotionContainer(directBlendTree.BlendTree));
             // Create a new object in the scene. We will add Modular Avatar components inside it.
-            var modularAvatar = MaAc.Create(new GameObject(SystemName)
-            {
-                transform = { parent = _buildContext.AvatarRootTransform }
-            });
+            var maGameObject = new GameObject(SystemName) {
+                transform = { parent = ctx.AvatarRootTransform }
+            };
+            var modularAvatar = MaAc.Create(maGameObject);
+            
+            var restMotionMerge = maGameObject.AddComponent<MotionMerger>();
+            restMotionMerge.Motion = restAnimation;
+            restMotionMerge.LayerPriority = int.MinValue + 100;
+            var primaryMotionMerge = maGameObject.AddComponent<MotionMerger>();
+            primaryMotionMerge.Motion = directBlendTree.BlendTree;
+            primaryMotionMerge.LayerPriority = int.MinValue + 100;
             
             // By creating a Modular Avatar Merge Animator component,
             // our animator controller will be added to the avatar's FX layer.
@@ -300,7 +298,7 @@ namespace org.Tayou.AmityEdits {
             directBlendTree.AddChild(clothingItem.onAnimation, clothingItem.ParameterReference.Name);
         }
 
-        private AnimationClip BuildDefaultRestStateAnimation(ClothingItem[] items, AnimatorState defaultState) {
+        private AnimationClip BuildDefaultRestStateAnimation(ClothingItem[] items, BuildContext ctx) {
             AnimationClip restAnimation = new AnimationClip();
             restAnimation.name = "Default Rest State";
             
@@ -314,9 +312,9 @@ namespace org.Tayou.AmityEdits {
                 // If no offAnimation exists but onAnimation does, generate one
                 if (offAnimation == null && clothingItem.onAnimation != null) {
                     Debug.LogWarning($"Generating offAnimation for clothing item {clothingItem.name}");
-                    offAnimation = GenerateOffAnimationFromScene(clothingItem, _buildContext.AvatarRootObject);
+                    offAnimation = GenerateOffAnimationFromScene(clothingItem, ctx.AvatarRootObject);
                     clothingItem.offAnimation = offAnimation;
-                    AssetDatabase.AddObjectToAsset(offAnimation, _buildContext.AssetContainer);
+                    AssetDatabase.AddObjectToAsset(offAnimation, ctx.AssetContainer);
                 }
                 
                 if (offAnimation == null) continue;
@@ -344,8 +342,7 @@ namespace org.Tayou.AmityEdits {
                 }
             }
             
-            AssetDatabase.AddObjectToAsset(restAnimation, _buildContext.AssetContainer);
-            defaultState.motion = restAnimation;
+            AssetDatabase.AddObjectToAsset(restAnimation, ctx.AssetContainer);
             return restAnimation;
         }
 
@@ -467,8 +464,8 @@ namespace org.Tayou.AmityEdits {
             return null;
         }
 
-        private void GenerateObjectToggle(ClothingItem clothingItem, GameObject baseAvatarObject) {
-            var path = clothingItem.transform.GetHierarchyPath(baseAvatarObject.transform);
+        private void GenerateObjectToggle(ClothingItem clothingItem, BuildContext ctx) {
+            var path = clothingItem.transform.GetHierarchyPath(ctx.AvatarRootTransform);
 
             // Create ON animation
             var onAnimation = new AnimationClip();
@@ -496,8 +493,8 @@ namespace org.Tayou.AmityEdits {
             AnimationUtility.SetEditorCurve(offAnimation, offBinding, offCurve);
             clothingItem.offAnimation = offAnimation;
 
-            AssetDatabase.AddObjectToAsset(onAnimation, _buildContext.AssetContainer);
-            AssetDatabase.AddObjectToAsset(offAnimation, _buildContext.AssetContainer);
+            AssetDatabase.AddObjectToAsset(onAnimation, ctx.AssetContainer);
+            AssetDatabase.AddObjectToAsset(offAnimation, ctx.AssetContainer);
         }
 
         private string GetRelativePath(Transform root, Transform target) {

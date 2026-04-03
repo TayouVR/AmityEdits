@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2023 Tayou <git@tayou.org>
  *
@@ -18,7 +18,9 @@
 using System;
 using System.IO;
 using nadena.dev.ndmf;
+using nadena.dev.ndmf.animator;
 using nadena.dev.ndmf.fluent;
+using org.Tayou.AmityEdits.Internal;
 using org.Tayou.AmityEdits.MenuItem;
 using UnityEditor;
 using UnityEngine;
@@ -65,15 +67,19 @@ namespace org.Tayou.AmityEdits {
             // Do Resolving Operations here
             
             sequence = InPhase(BuildPhase.Generating);
-            sequence.Run("Item Setups", ctx => new ItemSetupPass(ctx).Process());
-            sequence.Run("Clothing Manager", ctx => new ClothingManagerPass(ctx).Process());
-            sequence.Run("Menu Items", ctx => new MenuItemPass(ctx).Process());
-            sequence.Run("Selore Orifice Builder", ctx => new OrificePass(ctx).Process());
-            sequence.Run("Selore Shader Patcher", ctx => new SelorePatcherPass(ctx).Process());
+            //sequence.WithRequiredExtension(typeof(AnimatorServicesContext), _s2 => { });
+            sequence.Run(new ItemSetupPass());
+            sequence.Run(new ClothingManagerPass());
+            sequence.Run(new MenuItemPass());
+            sequence.Run(new OrificePass());
+            sequence.Run(new SelorePatcherPass());
+            sequence.WithRequiredExtension(typeof(AnimatorServicesContext), _s2 => {
+                sequence.Run(new MotionMergerPass());
+            });
             
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
-            sequence.Run("Reorder Menus", ctx => new ReorderMenusPass(ctx).Process());
+            sequence.Run(new ReorderMenusPass());
             
             sequence = InPhase(BuildPhase.Optimizing);
             // Do Optimizations here

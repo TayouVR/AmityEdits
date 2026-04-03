@@ -12,16 +12,13 @@ using org.Tayou.AmityEdits.Actions.Editor.Builders;
 using org.Tayou.AmityEdits.EditorUtils;
 
 namespace org.Tayou.AmityEdits.MenuItem {
-    public class MenuItemPass {
-        private readonly BuildContext _buildContext;
+    public class MenuItemPass : Pass<MenuItemPass> {
+        public override string QualifiedName => "org.Tayou.AmityEdits.MenuItemPass";
+        public override string DisplayName => "Menu Items";
 
-        public MenuItemPass(BuildContext context) {
-            _buildContext = context;
-        }
-
-        public void Process() {
-            var baseAvatarObject = _buildContext.AvatarRootObject;
-            var avatarDescriptor = _buildContext.VRChatAvatarDescriptor();
+        protected override void Execute(BuildContext ctx) {
+            var baseAvatarObject = ctx.AvatarRootObject;
+            var avatarDescriptor = ctx.VRChatAvatarDescriptor();
             MenuItem[] menuItems = baseAvatarObject.GetComponentsInChildren<MenuItem>(true);
             
             Debug.Log($"The Menu Item pass is processing {menuItems?.Length ?? 0} menu items");
@@ -97,7 +94,7 @@ namespace org.Tayou.AmityEdits.MenuItem {
                     foreach (var action in item.actions) {
                         if (action == null) continue;
                         try {
-                            action.BuildFor(_buildContext, item.vrcMenuControl);
+                            action.BuildFor(ctx, item.vrcMenuControl);
                         } catch (System.Exception e) {
                             Debug.LogException(e);
                         }

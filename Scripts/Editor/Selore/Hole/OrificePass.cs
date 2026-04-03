@@ -28,7 +28,9 @@ using VRC.SDK3.Dynamics.Contact.Components;
 
 namespace org.Tayou.AmityEdits {
     
-    public class OrificePass {
+    public class OrificePass : Pass<OrificePass> {
+        public override string QualifiedName => "org.Tayou.AmityEdits.SeloreOrificeBuilder";
+        public override string DisplayName => "Selore Orifice Builder";
         
         // Channel 0
         const float Ch0Regular = 0.41f;
@@ -48,21 +50,15 @@ namespace org.Tayou.AmityEdits {
         const string ContactSpsSocketHole = "SPSLL_Socket_Hole";
         const string ContactTpsOrificeRoot = "TPS_Orf_Root";
         const string ContactTpsOrificeNorm = "TPS_Orf_Norm";
-        
-        private readonly BuildContext _buildContext;
 
-        public OrificePass(BuildContext context) {
-            _buildContext = context;
-        }
-
-        public void Process() {
-            var components = _buildContext.AvatarRootObject.GetComponentsInChildren<SeloreHole>(true);
+        protected override void Execute(BuildContext ctx) {
+            var components = ctx.AvatarRootObject.GetComponentsInChildren<SeloreHole>(true);
             Debug.Log($"orifice count: {components.Length}");
 
             if (components.Length == 0) return;
             
             foreach (var orifice in components) {
-                Debug.Log($"orifice: {orifice.name}, target: {orifice.targetObject}, role: {orifice.role}, channel: {orifice.channel}, path: {orifice.gameObject.transform.GetHierarchyPath(_buildContext.AvatarRootObject.transform)}");
+                Debug.Log($"orifice: {orifice.name}, target: {orifice.targetObject}, role: {orifice.role}, channel: {orifice.channel}, path: {orifice.gameObject.transform.GetHierarchyPath(ctx.AvatarRootObject.transform)}");
                 CreateOrificeInPrefab(orifice);
             }
         }

@@ -4,6 +4,7 @@ using AnimatorAsCode.V1;
 using AnimatorAsCode.V1.ModularAvatar;
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits.EditorUtils;
+using org.Tayou.AmityEdits.Internal;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -56,14 +57,17 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             layer.WithDefaultState(blendTreeState);
 
             // Create a new object in the scene. We will add Modular Avatar components inside it.
-            var modularAvatar = MaAc.Create(new GameObject($"Amity {menuParameterName} Component")
-            {
-                transform = { parent = ctx.AvatarRootTransform }
-            });
+            // var modularAvatar = MaAc.Create(new GameObject($"Amity {menuParameterName} Component")
+            // {
+            //     transform = { parent = ctx.AvatarRootTransform }
+            // });
+            var mergeBlendTree = a.component.gameObject.AddComponent<MotionMerger>();
+            mergeBlendTree.Motion = blendTree.BlendTree;
+            mergeBlendTree.LayerPriority = int.MinValue + 100;
             
             // By creating a Modular Avatar Merge Animator component,
             // our animator controller will be added to the avatar's FX layer.
-            modularAvatar.NewMergeAnimator(ctrl.AnimatorController, VRCAvatarDescriptor.AnimLayerType.FX);
+            // modularAvatar.NewMergeAnimator(ctrl.AnimatorController, VRCAvatarDescriptor.AnimLayerType.FX);
         }
     }
 }

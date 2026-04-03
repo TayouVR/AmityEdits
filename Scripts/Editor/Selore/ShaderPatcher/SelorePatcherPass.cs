@@ -24,16 +24,12 @@ using UnityEditor.Animations;
 
 namespace org.Tayou.AmityEdits {
     
-    public class SelorePatcherPass {
-        
-        private readonly BuildContext _buildContext;
+    public class SelorePatcherPass : Pass<SelorePatcherPass> {
+        public override string QualifiedName => "org.Tayou.AmityEdits.SeloreShaderPatcher";
+        public override string DisplayName => "Selore Shader Patcher";
 
-        public SelorePatcherPass(BuildContext context) {
-            _buildContext = context;
-        }
-
-        public void Process() {
-            var avatarDescriptor = _buildContext.AvatarDescriptor;
+        protected override void Execute(BuildContext ctx) {
+            var avatarDescriptor = ctx.AvatarDescriptor;
 
             var components = avatarDescriptor.GetComponentsInChildren<SeloreShaderPatcher>(true);
 
@@ -47,7 +43,7 @@ namespace org.Tayou.AmityEdits {
 
                 foreach (var material in plugObject.renderer.sharedMaterials) {
                     SeloreConfigurer.ConfigureSpsMaterial(
-                        _buildContext, 
+                        ctx, 
                         plugObject.renderer, 
                         material,
                         1, 
@@ -56,7 +52,7 @@ namespace org.Tayou.AmityEdits {
                         plugObject.gameObject, 
                         new List<string>()
                     );
-                    SelorePatcher.Patch(material, _buildContext, true, plugObject.shaderToPatch);
+                    SelorePatcher.Patch(material, ctx, true, plugObject.shaderToPatch);
                 }
             }
         }
