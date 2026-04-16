@@ -42,7 +42,7 @@ using TreeView = UnityEngine.UIElements.TreeView;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(SeloreHole), true)]
-    public class SeloreOrificeEditor : AmityBaseEditor {
+    public class SeloreHoleEditor : AmityBaseEditor {
         private SeloreHole _targetComponent;
         
         private void DrawHeaderCallback(Rect rect) {
@@ -137,9 +137,14 @@ namespace org.Tayou.AmityEdits {
             var penetratorLengthParameterNameProp = serializedObject.FindProperty("penetratorLengthParameterName");
             
             var enableDeformationProp = serializedObject.FindProperty("enableDeformation");
+            var enableContactSendersProp = serializedObject.FindProperty("enableContactSenders");
             var enableToyContactsProp = serializedObject.FindProperty("enableToyContacts");
             var channelProp = serializedObject.FindProperty("channel");
             var roleProp = serializedObject.FindProperty("role");
+            
+            var generateLightsProp = serializedObject.FindProperty("generateLights");
+            var generateContactPointsProp = serializedObject.FindProperty("generateContactPoints");
+            var generateToyContactsProp = serializedObject.FindProperty("generateToyContacts");
             
             // Fields
             var targetObjectField = new PropertyField(targetObjectProp);
@@ -149,22 +154,44 @@ namespace org.Tayou.AmityEdits {
             var penetratorLengthParameterNameField = new PropertyField(penetratorLengthParameterNameProp);
             
             var enableDeformationField = new PropertyField(enableDeformationProp);
+            var enableContactSendersField = new PropertyField(enableContactSendersProp);
             var enableToyContactsField = new PropertyField(enableToyContactsProp);
             var channelField = new PropertyField(channelProp);
             var roleField = new PropertyField(roleProp);
             
+            var generateLightsField = new PropertyField(generateLightsProp);
+            var generateContactPointsField = new PropertyField(generateContactPointsProp);
+            var generateToyContactsField = new PropertyField(generateToyContactsProp);
+            
+            
             root.Add(targetObjectField);
             
-            root.Add(new Label("Parameter Names"));
+            root.Add(Utils.Header("Parameter Names"));
             root.Add(depthParameterNameField);
             root.Add(penetratorWidthParameterNameField);
             root.Add(penetratorLengthParameterNameField);
             
-            root.Add(new Label("Properties (animatable)"));
+            root.Add(Utils.Header("Properties (animatable)"));
             root.Add(enableDeformationField);
+            root.Add(enableContactSendersField);
             root.Add(enableToyContactsField);
             root.Add(channelField);
             root.Add(roleField);
+            root.Add(Utils.InfoBox("these properties will be repathed on build to point to lights, contacts, etc. and animate the hole accordingly."));
+            
+            var advancedContainer = new VisualElement();
+            advancedContainer.Add(Utils.InfoBox("You Probably don't want to disable these, unless you know what you are doing.\n" +
+                                                "Disabling Lights or contacts will break deformation."));
+            advancedContainer.Add(generateLightsField);
+            advancedContainer.Add(generateContactPointsField);
+            advancedContainer.Add(generateToyContactsField);
+
+            var advancedFoldout = new Foldout {
+                text = "Advanced",
+            };
+            advancedFoldout.contentContainer.Add(advancedContainer);
+            
+            root.Add(advancedFoldout);
 
             return root;
         }

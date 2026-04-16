@@ -43,6 +43,11 @@ namespace org.Tayou.AmityEdits {
         const float Ch1Ring = 0.44f;
         const float Ch1Normal = 0.46f;
         const float Ch1Physics = 0.48f;
+        
+        static readonly float[,] LightRangeMatrix = {
+            { Ch0Regular, Ch0Ring, Ch0Normal, Ch0Physics },
+            { Ch1Regular, Ch1Ring, Ch1Normal, Ch1Physics }
+        };
 
         const string ContactSpsSocketFront = "SPSLL_Socket_Front";
         const string ContactSpsSocketRoot = "SPSLL_Socket_Root";
@@ -65,32 +70,44 @@ namespace org.Tayou.AmityEdits {
 
         // follow spec as defined here: https://gist.github.com/TayouVR/aad7f8b6d83264b379d90e5100653a76
         private void CreateOrificeInPrefab(SeloreHole seloreHole) {
-            var rootObject = (UnityEngine.Object)seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.gameObject.transform;
+            var rootObject = (object)seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.gameObject.transform;
 
             Debug.Log(rootObject);
+            
+            // TODO: feature gate lights, contact senders and toy contact receivers
             
             // Lights
             var lightParent = new GameObject("Lights");
             lightParent.transform.SetParent(rootObject, false);
-            CreateLight(seloreHole.role == SeloreRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.channel, lightParent.transform);
-            CreateLight(ApsLightRole.Normal, seloreHole.channel, lightParent.transform);
+            CreateLight(seloreHole.role == SeloreRole.Hole ? SeloreLightRole.HoleBase : SeloreLightRole.RingBase, seloreHole.channel, lightParent.transform);
+            CreateLight(SeloreLightRole.Normal, seloreHole.channel, lightParent.transform);
             
             // contact senders
             var sendersParent = new GameObject("Senders");
             sendersParent.transform.SetParent(rootObject, false);
-            CreateContactSender(seloreHole.role == SeloreRole.Hole ? ApsLightRole.HoleBase : ApsLightRole.RingBase, seloreHole.role, sendersParent.transform);
-            CreateContactSender(ApsLightRole.Normal, seloreHole.role, sendersParent.transform);
+            CreateContactSender(seloreHole.role == SeloreRole.Hole ? SeloreLightRole.HoleBase : SeloreLightRole.RingBase, seloreHole.role, sendersParent.transform);
+            CreateContactSender(SeloreLightRole.Normal, seloreHole.role, sendersParent.transform);
             
+            // toy contact receivers
+            var receiversParent = new GameObject("Receivers");
+            receiversParent.transform.SetParent(rootObject, false);
+            CreateToyContactReceivers(seloreHole, receiversParent.transform);
             
+            // TODO: repath animations for animatable component properties to lights and contacts
         }
 
-        private void CreateContactSender(ApsLightRole lightRole, SeloreRole role, Transform parent) {
-            var gameObject = new GameObject(lightRole == ApsLightRole.Normal ? "Front" :  "Root", typeof(VRCContactSender));
+        // not part of DPS spec; check VRCFury, or OSCGoesBrr for spec or infer spec from build output/VRCF code
+        private void CreateToyContactReceivers(SeloreHole seloreHole, Transform receiversParentTransform) {
+            // TODO: implement toy contact receivers
+        }
+
+        private void CreateContactSender(SeloreLightRole lightRole, SeloreRole role, Transform parent) {
+            var gameObject = new GameObject(lightRole == SeloreLightRole.Normal ? "Front" :  "Root", typeof(VRCContactSender));
             gameObject.transform.SetParent(parent, false);
             var vrcContactSender = gameObject.GetComponent<VRCContactSender>();
             vrcContactSender.radius = 0.001f;
 
-            if (lightRole == ApsLightRole.Normal) {
+            if (lightRole == SeloreLightRole.Normal) {
                 vrcContactSender.collisionTags.Add(ContactSpsSocketFront);
                 vrcContactSender.collisionTags.Add(ContactTpsOrificeNorm);
                 gameObject.transform.localPosition = new Vector3(0, 0, 0.01f);
@@ -113,34 +130,28 @@ namespace org.Tayou.AmityEdits {
             }
         }
 
-        private void CreateLight(ApsLightRole role, SeloreChannel channel, Transform parent) {
-            var gameObject = new GameObject(role == ApsLightRole.Normal ? "Front" :  "Root", typeof(Light));
+        private void CreateLight(SeloreLightRole role, SeloreChannel channel, Transform parent) {
+            var gameObject = new GameObject(role == SeloreLightRole.Normal ? "Front" :  "Root", typeof(Light));
             gameObject.transform.SetParent(parent, false);
             var light = gameObject.GetComponent<Light>();
             light.color = Color.black;
             light.range = GetRangeFromRoleAndChannel(role, channel);
             light.renderMode = LightRenderMode.ForceVertex;
 
-            if (role == ApsLightRole.Normal) {
+            if (role == SeloreLightRole.Normal) {
                 gameObject.transform.localPosition = new Vector3(0, 0, 0.01f);
             }
         }
         
-        private float GetRangeFromRoleAndChannel(ApsLightRole role, SeloreChannel channel) {
-            if (channel == SeloreChannel.DpsChannel0) {
-                return role == ApsLightRole.RingBase ? Ch0Ring : role == ApsLightRole.Normal ? Ch0Normal : Ch0Regular;
-            } else if (channel == SeloreChannel.DpsChannel1) {
-                return role == ApsLightRole.RingBase ? Ch1Ring : role == ApsLightRole.Normal ? Ch1Normal : Ch1Regular;
-            }
-
-            return Ch0Regular;
+        private float GetRangeFromRoleAndChannel(SeloreLightRole role, SeloreChannel channel) {
+            return LightRangeMatrix[(int)channel, (int)role];
         }
     }
 
-    internal enum ApsLightRole {
-        RingBase,
-        HoleBase,
-        Normal,
-        Tip, // tip shouldn't ever be needed, but for completeness with DPS spec I'm including it
+    internal enum SeloreLightRole {
+        HoleBase = 0,
+        RingBase = 1,
+        Normal = 2,
+        Tip = 3, // tip shouldn't ever be needed, but for completeness with DPS spec I'm including it
     }
 }

@@ -32,9 +32,15 @@ namespace org.Tayou.AmityEdits {
         public string depthParameterName;
         public string penetratorWidthParameterName;
         public string penetratorLengthParameterName;
+        
+        // features to generate
+        public bool generateLights = true;
+        public bool generateContactPoints = true;
+        public bool generateToyContacts = true;
 
         // animation - these properties may be animated.
         public bool enableDeformation;
+        public bool enableContactSenders;
         public bool enableToyContacts;
         public SeloreChannel channel;
         public SeloreRole role;

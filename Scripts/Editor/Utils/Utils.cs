@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace org.Tayou.AmityEdits {
     public class Utils {
@@ -78,6 +79,21 @@ namespace org.Tayou.AmityEdits {
                    || EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneWindows64
                    || EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneOSX
                    || EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneLinux64;
+        }
+
+        public static Box InfoBox(string text) {
+            var box = new Box()
+                .Border(1, 1)
+                .BorderColor(new Color(.3f,.3f,1,1))
+                .BorderRadius(2)
+                .Padding(5)
+                .Margin(5);
+            box.Add(new Label(text));
+            return box;
+        }
+
+        public static Label Header(string text) {
+            return new Label(text).Bold();
         }
     }
 }
