@@ -142,9 +142,9 @@ namespace org.Tayou.AmityEdits {
             var channelProp = serializedObject.FindProperty("channel");
             var roleProp = serializedObject.FindProperty("role");
             
-            var generateLightsProp = serializedObject.FindProperty("generateLights");
-            var generateContactPointsProp = serializedObject.FindProperty("generateContactPoints");
-            var generateToyContactsProp = serializedObject.FindProperty("generateToyContacts");
+            var featureLightsProp = serializedObject.FindProperty("featureLights");
+            var featureContactSendersProp = serializedObject.FindProperty("featureContactSenders");
+            var featureToyContactReceiversProp = serializedObject.FindProperty("featureToyContactReceivers");
             
             // Fields
             var targetObjectField = new PropertyField(targetObjectProp);
@@ -159,9 +159,9 @@ namespace org.Tayou.AmityEdits {
             var channelField = new PropertyField(channelProp);
             var roleField = new PropertyField(roleProp);
             
-            var generateLightsField = new PropertyField(generateLightsProp);
-            var generateContactPointsField = new PropertyField(generateContactPointsProp);
-            var generateToyContactsField = new PropertyField(generateToyContactsProp);
+            var featureLightsField = new PropertyField(featureLightsProp);
+            var featureContactSendersField = new PropertyField(featureContactSendersProp);
+            var featureToyContactReceiversField = new PropertyField(featureToyContactReceiversProp);
             
             
             root.Add(targetObjectField);
@@ -182,9 +182,9 @@ namespace org.Tayou.AmityEdits {
             var advancedContainer = new VisualElement();
             advancedContainer.Add(Utils.InfoBox("You Probably don't want to disable these, unless you know what you are doing.\n" +
                                                 "Disabling Lights or contacts will break deformation."));
-            advancedContainer.Add(generateLightsField);
-            advancedContainer.Add(generateContactPointsField);
-            advancedContainer.Add(generateToyContactsField);
+            advancedContainer.Add(featureLightsField);
+            advancedContainer.Add(featureContactSendersField);
+            advancedContainer.Add(featureToyContactReceiversField);
 
             var advancedFoldout = new Foldout {
                 text = "Advanced",

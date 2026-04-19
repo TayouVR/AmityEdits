@@ -20,9 +20,12 @@ using System;
 using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
+    [AddComponentMenu("Amity Edits/Selore Shader Patcher")]
     public class SeloreShaderPatcher : AmityBaseComponent {
+        public bool findRenderer = true;
         public Renderer renderer;
-        public ShaderPatchSelection shaderToPatch;
+        [SerializeField]
+        public ShaderPatchSelection shaderToPatch = ShaderPatchSelection.AmitySelore;
 
         public ShaderPatchOptionBase shaderPatchOption {
             get {
@@ -31,17 +34,21 @@ namespace org.Tayou.AmityEdits {
         }
 
         /** Whether or not to patch the shader to deform the mesh */
-        public bool featureDeformationEnabled;
+        public bool featureDeformationEnabled = true;
         /** If contact senders for triggering socket actions */
-        public bool featureContactSenders;
+        public bool featureContactSenders = true;
         /** If contact receivers for interpreting by OSCGoesBrr should be added */
-        public bool featureToyContactReceivers;
-        /** if contacts to expose depth and width to the animator should be generated */
-        public bool featureDepthContactReceivers;
+        public bool featureToyContactReceivers = true;
+        /** If legacy DPS tip light should be added */
+        public bool featureTipLight = false;
+        /** if contacts to expose depth and width to the animator should be generated
+         * TODO: have this be handled by another component
+         */
+        public bool featureDepthContactReceivers = true;
         /** automatically rig non-rigged meshes based on plug orientation and length for physics */
-        public bool featureAutoRigging;
+        public bool featureAutoRigging = true;
         /** automatically configure the renderer bounds to well working values for deformation */
-        public bool autoConfigureBounds;
+        public bool autoConfigureBounds = true;
         
         /** animate shader deformation, treated as bool - 0 or 1 */
         public float deformationEnabled;
@@ -51,8 +58,9 @@ namespace org.Tayou.AmityEdits {
     }
 }
 
+[Serializable]
 public enum ShaderPatchSelection {
-    AmitySPS,
+    AmitySelore,
     VRCFurySPS,
     RalivDPS,
     PoiTPS,
@@ -67,7 +75,7 @@ public abstract class ShaderPatchOptionBase {
 
 public class ShaderPatchOptionAmity : ShaderPatchOptionBase {
     public static string name = "Amity SPS";
-    public static ShaderPatchSelection type = ShaderPatchSelection.AmitySPS;
+    public static ShaderPatchSelection type = ShaderPatchSelection.AmitySelore;
 
     public override Shader PatchShader(Shader shader) {
         return shader;
@@ -107,7 +115,7 @@ public static class ShaderPathSelectionExtensions
     {
         switch (shaderPatchSelection) 
         {
-            case ShaderPatchSelection.AmitySPS:
+            case ShaderPatchSelection.AmitySelore:
                 return "6cf9adf85849489b97305dfeecc74768";
             case ShaderPatchSelection.VRCFurySPS:
                 return "6cf9adf85849489b97305dfeecc74768";

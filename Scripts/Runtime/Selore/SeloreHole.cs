@@ -23,7 +23,7 @@ namespace org.Tayou.AmityEdits {
     /**
      * This component represents a DPS/TPS orifice or SPS Socket
      */
-    [AddComponentMenu("Amity Edits/Orifice")]
+    [AddComponentMenu("Amity Edits/Selore Hole")]
     public class SeloreHole : AmityBaseComponent {
 
         /// The object, where the orifice should be placed
@@ -34,9 +34,9 @@ namespace org.Tayou.AmityEdits {
         public string penetratorLengthParameterName;
         
         // features to generate
-        public bool generateLights = true;
-        public bool generateContactPoints = true;
-        public bool generateToyContacts = true;
+        public bool featureLights = true;
+        public bool featureContactSenders = true;
+        public bool featureToyContactReceivers = true;
 
         // animation - these properties may be animated.
         public bool enableDeformation;

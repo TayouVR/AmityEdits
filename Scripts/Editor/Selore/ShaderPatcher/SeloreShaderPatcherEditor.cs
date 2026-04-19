@@ -17,57 +17,68 @@
  */
 using UnityEditor;
 using UnityEditor.UIElements;
+using org.Tayou.AmityEdits;
 using UnityEngine;
 using UnityEngine.UIElements;
-using org.Tayou.AmityEdits;
 
 namespace org.Tayou.AmityEdits {
 
 [CustomEditor(typeof(SeloreShaderPatcher))]
-public class SeloreShaderPatcherEditor : Editor {
+public class SeloreShaderPatcherEditor : UnityEditor.Editor {
+    
+    private Renderer _autoDiscoveredRenderer;
     
     public override VisualElement CreateInspectorGUI() {
         var root = new VisualElement();
         var target = serializedObject.targetObject as SeloreShaderPatcher;
-
-        var rendererField = new ObjectField("Renderer");
-        rendererField.objectType = typeof(Renderer);
-        rendererField.BindProperty(serializedObject.FindProperty("renderer"));
-        root.Add(rendererField);
+        
+        var findRendererProp = serializedObject.FindProperty("findRenderer");
+        root.Add(new PropertyField(findRendererProp, "Automatically find Renderer"));
+        var rendererFieldWrapper = new VisualElement();
+        root.Add(rendererFieldWrapper);
+        
+        var rendererField = new PropertyField(serializedObject.FindProperty("renderer"), "Renderer");
+        var autoRendererField = new ObjectField("Renderer") {
+            objectType = typeof(Renderer),
+        };
+        autoRendererField.SetEnabled(false);
+        autoRendererField.SetValueWithoutNotify(_autoDiscoveredRenderer);
+        rendererFieldWrapper.Add(findRendererProp.boolValue ? autoRendererField : rendererField);
+        
+        root.Add(new PropertyField(serializedObject.FindProperty("shaderToPatch"), "Shader to Patch"));
+        root.Add(new PropertyField(serializedObject.FindProperty("featureAutoRigging"), "Auto Rig"));
+        root.Add(new PropertyField(serializedObject.FindProperty("autoConfigureBounds"), "Auto Configure Bounds"));
         
         
-
-        /* Whether to patch the shader to deform the mesh */
-        var featureDeformationEnabled = new Toggle("Enable Deformation");
-        root.Add(featureDeformationEnabled);
-        
-        var shaderPatchContainer = new VisualElement();
-        
-        var shaderSelectionField = new EnumField("Shader", ShaderPatchSelection.AmitySPS);
-        rendererField.BindProperty(serializedObject.FindProperty("shaderToPatch"));
-        shaderPatchContainer.Add(shaderSelectionField);
-        
-        /* automatically rig non-rigged meshes based on plug orientation and length for physics */
-        bool featureAutoRigging;
-        /* automatically configure the renderer bounds to well working values for deformation */
-        bool autoConfigureBounds;
-        
-        
-        root.Add(shaderPatchContainer);
-
-        /* If contact senders for triggering socket actions */
-        bool featureContactSenders;
-        /* If contact receivers for interpreting by OSCGoesBrr should be added */
-        bool featureToyContactReceivers;
-        /* if contacts to expose depth and width to the animator should be generated */
-        bool featureDepthContactReceivers;
+        root.Add(Utils.Header("Properties (animatable)"));
             
-        /* animate shader deformation, treated as bool - 0 or 1 */
-        float deformationEnabled;
+        var advancedContainer = new VisualElement();
+        advancedContainer.Add(Utils.Header("Features"));
+        advancedContainer.Add(Utils.InfoBox("You Probably don't want to change these, unless you know what you are doing.\n" +
+                                            "Enabling the Tip Light or disabling contacts may break features."));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("featureDeformationEnabled"), "Enable Deformation"));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("featureTipLight"), "Enable Tip Light"));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("featureContactSenders"), "Enable Contact Senders"));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("featureToyContactReceivers"), "Enable Toy Contact Receivers"));
+
+        var advancedFoldout = new Foldout {
+            text = "Advanced",
+        };
+        advancedFoldout.contentContainer.Add(advancedContainer);
+        root.Add(advancedFoldout);
 
         bool spsOverrun;
         bool spsKeepImports;
         
+        root.TrackPropertyValue(findRendererProp, _ => {
+            if (findRendererProp.boolValue) {
+                rendererFieldWrapper.Remove(rendererField);
+                rendererFieldWrapper.Add(autoRendererField);
+            } else {
+                rendererFieldWrapper.Remove(autoRendererField);
+                rendererFieldWrapper.Add(rendererField);
+            }
+        });
         
         // fallback: base.CreateInspectorGUI()
         return root;
