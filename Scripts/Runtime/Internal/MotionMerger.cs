@@ -7,7 +7,7 @@ namespace org.Tayou.AmityEdits.Internal {
     /**
      * Merges a Motion (AnimationClip or BlendTree) into the Avatars Animator(s) 
      */
-    public class MotionMerger : MonoBehaviour, IVirtualizeMotion {
+    public class MotionMerger : AmityBaseComponent, IVirtualizeMotion {
         public int LayerPriority { get; set; }
         public VRCAvatarDescriptor.AnimLayerType LayerType { get; set; }
         public Motion Motion { get; set; }
