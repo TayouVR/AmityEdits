@@ -1,0 +1,3 @@
+# ignore shader definition module files, as they aren't licensed MIT (part of pro)
+PoiyomiFree**.asset
+PoiyomiFree**.asset.meta
