@@ -1,4 +1,4 @@
-Shader ".poiyomi/Poiyomi Toon"
+Shader ".poiyomi/Selore Poiyomi Toon"
 {
 	Properties
 	{
@@ -4544,6 +4544,21 @@ Shader ".poiyomi/Poiyomi Toon"
 		[HideInInspector] m_end_BeatsaberOptions ("", Float) = 0
 		//endex
 		
+		// Selore Penetrator (added by .Amity/Selore patch)
+		[HideInInspector] m_start_Selore (" Selore Penetrator--{reference_property:Selore_PenetratorEnabled}", Float) = 0
+		[Toggle] Selore_PenetratorEnabled ("Enable Penetrator", Float) = 0
+		Selore_DeformStrength ("Deform Strength", Range(0,1)) = 1
+		[Vector3] Selore_StartPosition ("Start Position", Vector) = (0,0,0,0)
+		Selore_StartRotation ("Start Rotation", Vector) = (0,0,0,0)
+		Selore_PenetratorLength ("Length", Float) = 0.2
+		[Enum(Channel 0,0,Channel 1,1)] Selore_Channel ("Channel", Float) = 0
+		[Toggle] Selore_AllTheWayThrough ("All The Way Through", Float) = 0
+		[HideInInspector] s_start_SeloreSpline ("Spline Controls", Float) = 0
+		Selore_BezierHandleSize ("Bezier Handle Size", Range(0.05,0.5)) = 0.15
+		[Toggle] Selore_SplineDebug ("Spline Debug", Float) = 0
+		[HideInInspector] s_end_SeloreSpline ("Spline Controls", Float) = 0
+		[HideInInspector] m_end_Selore ("Selore Penetrator", Float) = 0
+		
 		[HideInInspector] m_renderingCategory ("Rendering--{button_help:{text:Tutorial,action:{type:URL,data:https://www.poiyomi.com/rendering/main},hover:Documentation}}", Float) = 0
 		[DoNotAnimate][Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
 		[DoNotAnimate][Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("ZTest", Float) = 4
@@ -4864,6 +4879,7 @@ Shader ".poiyomi/Poiyomi Toon"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
+			#include "../../core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -8687,6 +8703,9 @@ Shader ".poiyomi/Poiyomi Toon"
 				#endif
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				
+				// Selore penetrator deform
+				SeloreDeform(v.vertex, v.normal, v.color);
+				
 				#ifdef POI_AUDIOLINK
 				float vertexAudioLink[5];
 				vertexAudioLink[0] = _AudioLinkSmoothingBass == 0 ? AudioLinkData(ALPASS_AUDIOLINK + float2(0, 0))[0] : AudioLinkData(ALPASS_FILTEREDAUDIOLINK + float2((1 - _AudioLinkSmoothingBass) * 15.95, 0))[0];
@@ -10243,6 +10262,7 @@ Shader ".poiyomi/Poiyomi Toon"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
+			#include "../../core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -18102,6 +18122,9 @@ Shader ".poiyomi/Poiyomi Toon"
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(v);
 				#endif
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+				
+				// Selore penetrator deform
+				SeloreDeform(v.vertex, v.normal, v.color);
 				
 				#ifdef POI_AUDIOLINK
 				float vertexAudioLink[5];
@@ -30751,6 +30774,7 @@ Shader ".poiyomi/Poiyomi Toon"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
+			#include "../../core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -37294,6 +37318,9 @@ Shader ".poiyomi/Poiyomi Toon"
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(v);
 				#endif
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+				
+				// Selore penetrator deform
+				SeloreDeform(v.vertex, v.normal, v.color);
 				
 				#ifdef POI_AUDIOLINK
 				float vertexAudioLink[5];
@@ -47659,6 +47686,7 @@ Shader ".poiyomi/Poiyomi Toon"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
+			#include "../../core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -53256,6 +53284,9 @@ Shader ".poiyomi/Poiyomi Toon"
 				#endif
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 				
+				// Selore penetrator deform
+				SeloreDeform(v.vertex, v.normal, v.color);
+				
 				#ifdef POI_AUDIOLINK
 				float vertexAudioLink[5];
 				vertexAudioLink[0] = _AudioLinkSmoothingBass == 0 ? AudioLinkData(ALPASS_AUDIOLINK + float2(0, 0))[0] : AudioLinkData(ALPASS_FILTEREDAUDIOLINK + float2((1 - _AudioLinkSmoothingBass) * 15.95, 0))[0];
@@ -58660,6 +58691,7 @@ Shader ".poiyomi/Poiyomi Toon"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
+			#include "../../core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -63004,6 +63036,9 @@ Shader ".poiyomi/Poiyomi Toon"
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(v);
 				#endif
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+				
+				// Selore penetrator deform
+				SeloreDeform(v.vertex, v.normal, v.color);
 				
 				#ifdef POI_AUDIOLINK
 				float vertexAudioLink[5];
