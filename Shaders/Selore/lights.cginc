@@ -18,7 +18,7 @@
 #ifndef SELORE_LIGHTS
 #define SELORE_LIGHTS
 
-#include <UnityShaderVariables.cginc>
+#include "UnityShaderVariables.cginc"
 
 #include "globals.cginc"
 
