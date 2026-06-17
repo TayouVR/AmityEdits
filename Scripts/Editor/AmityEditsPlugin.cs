@@ -20,6 +20,7 @@ using System.IO;
 using nadena.dev.ndmf;
 using nadena.dev.ndmf.animator;
 using nadena.dev.ndmf.fluent;
+using org.Tayou.AmityEdits.DirectBlendTreeMerger;
 using org.Tayou.AmityEdits.Internal;
 using org.Tayou.AmityEdits.MenuItem;
 using UnityEditor;
@@ -76,6 +77,7 @@ namespace org.Tayou.AmityEdits {
             sequence.WithRequiredExtension(typeof(AnimatorServicesContext), _s2 => {
                 sequence.Run(new MotionMergerPass());
             });
+            sequence.Run(new DirectBlendTreeMergerPass());
             
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
