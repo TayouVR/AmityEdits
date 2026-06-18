@@ -74,24 +74,29 @@ namespace org.Tayou.AmityEdits {
 
             Debug.Log(rootObject);
             
-            // TODO: feature gate lights, contact senders and toy contact receivers
-            
             // Lights
-            var lightParent = new GameObject("Lights");
-            lightParent.transform.SetParent(rootObject, false);
-            CreateLight(seloreHole.role == SeloreRole.Hole ? SeloreLightRole.HoleBase : SeloreLightRole.RingBase, seloreHole.channel, lightParent.transform);
-            CreateLight(SeloreLightRole.Normal, seloreHole.channel, lightParent.transform);
-            
+            if (seloreHole.featureLights) {
+                var lightParent = new GameObject("Lights");
+                lightParent.transform.SetParent(rootObject, false);
+                CreateLight(seloreHole.role == SeloreRole.Hole ? SeloreLightRole.HoleBase : SeloreLightRole.RingBase,
+                    seloreHole.channel, lightParent.transform);
+                CreateLight(SeloreLightRole.Normal, seloreHole.channel, lightParent.transform);
+            }
+
             // contact senders
-            var sendersParent = new GameObject("Senders");
-            sendersParent.transform.SetParent(rootObject, false);
-            CreateContactSender(seloreHole.role == SeloreRole.Hole ? SeloreLightRole.HoleBase : SeloreLightRole.RingBase, seloreHole.role, sendersParent.transform);
-            CreateContactSender(SeloreLightRole.Normal, seloreHole.role, sendersParent.transform);
+            if (seloreHole.featureContactSenders) {
+                var sendersParent = new GameObject("Senders");
+                sendersParent.transform.SetParent(rootObject, false);
+                CreateContactSender(seloreHole.role == SeloreRole.Hole ? SeloreLightRole.HoleBase : SeloreLightRole.RingBase, seloreHole.role, sendersParent.transform);
+                CreateContactSender(SeloreLightRole.Normal, seloreHole.role, sendersParent.transform);
+            }
             
             // toy contact receivers
-            var receiversParent = new GameObject("Receivers");
-            receiversParent.transform.SetParent(rootObject, false);
-            CreateToyContactReceivers(seloreHole, receiversParent.transform);
+            if (seloreHole.featureToyContactReceivers) {
+                var receiversParent = new GameObject("Receivers");
+                receiversParent.transform.SetParent(rootObject, false);
+                CreateToyContactReceivers(seloreHole, receiversParent.transform);
+            }
             
             // TODO: repath animations for animatable component properties to lights and contacts
         }
