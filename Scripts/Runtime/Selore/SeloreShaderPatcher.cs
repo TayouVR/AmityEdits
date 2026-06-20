@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2023 Tayou <git@tayou.org>
  *
@@ -49,12 +49,43 @@ namespace org.Tayou.AmityEdits {
         public bool featureAutoRigging = true;
         /** automatically configure the renderer bounds to well working values for deformation */
         public bool autoConfigureBounds = true;
-        
+
         /** animate shader deformation, treated as bool - 0 or 1 */
-        public float deformationEnabled;
+        public float deformationEnabled = 1f;
+
+        // ------------------------------------------------------------------
+        // Selore animatable / configurable shader values
+        // ------------------------------------------------------------------
+
+        /** Material default for Selore_DeformStrength (0-1). */
+        public float deformStrength = 1f;
+        /** Which DPS channel the penetrator operates on. */
+        public SeloreChannel channel = SeloreChannel.DpsChannel0;
+        /** When true the mesh deforms through a second orifice in addition to the first. */
+        public bool allTheWayThrough;
+
+        // ------------------------------------------------------------------
+        // Optional overrides for auto-computed transform values. When the
+        // override flag is false the patcher pass computes the value from the
+        // renderer and component transforms.
+        // ------------------------------------------------------------------
+
+        public bool overrideStartPosition;
+        public Vector3 startPosition;
+
+        public bool overrideStartRotation;
+        /** Euler angles in degrees, in the renderer's local space. */
+        public Vector3 startRotation;
+
+        public bool overrideLength;
+        public float length = 0.2f;
+
+        // ------------------------------------------------------------------
+        // Patcher implementation details
+        // ------------------------------------------------------------------
 
         public bool spsOverrun;
-        public bool spsKeepImports;
+        public bool keepImports;
     }
 }
 
