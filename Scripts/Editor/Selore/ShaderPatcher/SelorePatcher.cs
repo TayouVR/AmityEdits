@@ -13,13 +13,15 @@ using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
     public static class SelorePatcher {
-        private const string HashBuster = "9";
-        
+        // Bump this whenever the injected code changes so cached patched shaders
+        // are invalidated and regenerated.
+        private const string HashBuster = "selore-1";
+
         public static void Patch(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection) {
             if (!mat.shader) return;
             try {
                 var renderQueue = mat.renderQueue;
-                PatchUnsafe(mat, ctx, keepImports);
+                PatchUnsafe(mat, ctx, keepImports, selection);
                 mat.renderQueue = renderQueue;
             } catch (Exception e) {
                 throw new Exception(
@@ -33,9 +35,9 @@ namespace org.Tayou.AmityEdits {
             return new Regex(pattern, RegexOptions.Compiled);
         }
 
-        private static void PatchUnsafe(Material mat, BuildContext ctx, bool keepImports) {
+        private static void PatchUnsafe(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection) {
             var shader = mat.shader;
-            var newShader = PatchUnsafe(shader, ctx, keepImports);
+            var newShader = PatchUnsafe(shader, ctx, keepImports, selection);
             mat.shader = newShader.shader;
             AssetDatabase.AddObjectToAsset(newShader.shader, ctx.AssetContainer);
         }
@@ -44,9 +46,9 @@ namespace org.Tayou.AmityEdits {
             public Shader shader;
             public int patchedPasses;
         }
-        private static PatchResult PatchUnsafe(Shader shader, BuildContext ctx, bool keepImports, string parentHash = null) {
-            var pathToSps = GetPathToSps();
-            var contents = ReadFile(shader);
+        private static PatchResult PatchUnsafe(Shader shader, BuildContext ctx, bool keepImports, ShaderPatchSelection selection, string parentHash = null) {
+            var pathToSelore = GetPathToIncludes(selection);
+            var contents = ReadFile(shader, selection);
 
             void Replace(string pattern, string replacement, int count) {
                 var startLen = contents.Length + "" + contents.GetHashCode();
@@ -56,8 +58,9 @@ namespace org.Tayou.AmityEdits {
                 }
             }
 
-            if (contents.Contains("_SPS_Bake")) {
-                Debug.Log("Shader appears to already be patched, which should be impossible");
+            // Skip if the shader is already patched (marker property) or if it already
+            // defines the Selore feature natively (e.g. the reference implementation).
+            if (contents.Contains("_Selore_Patched") || contents.Contains("Selore_DeformStrength")) {
                 return new PatchResult {
                     shader = shader,
                     patchedPasses = 0
@@ -65,7 +68,7 @@ namespace org.Tayou.AmityEdits {
             }
 
             if (parentHash == null) {
-                var propertiesContent = ReadAndFlattenPath($"{pathToSps}/sps_props.cginc");
+                var propertiesContent = ReadAndFlattenPath($"{pathToSelore}/selore_props.cginc");
                 Replace(
                     @"((?:^|\n)\s*Properties\s*{)",
                     $"$1\n{propertiesContent}\n",
@@ -74,15 +77,15 @@ namespace org.Tayou.AmityEdits {
                 contents = GetRegex(@"\n\s+CustomEditor [^\n]+").Replace(contents, "");
             }
 
-            string spsMain;
+            string seloreMain;
             if (keepImports) {
-                spsMain = $"#include \"{pathToSps}/sps_main.cginc\"";
+                seloreMain = $"#include \"{pathToSelore}/selore_main.cginc\"";
             } else {
-                spsMain = ReadAndFlattenPath($"{pathToSps}/sps_main.cginc");
+                seloreMain = ReadAndFlattenPath($"{pathToSelore}/selore_main.cginc");
             }
             
             var md5 = MD5.Create();
-            var hashContent = contents + spsMain + HashBuster;
+            var hashContent = contents + seloreMain + HashBuster;
             var hashContentBytes = Encoding.UTF8.GetBytes(hashContent);
             var hashBytes = md5.ComputeHash(hashContentBytes);
             var hash = string.Join("", Enumerable.Range(0, hashBytes.Length)
@@ -96,9 +99,9 @@ namespace org.Tayou.AmityEdits {
             if (shader.name.StartsWith("Hidden/Locked/")) {
                 // Special case for Poiyomi
                 // This prevents Poiyomi from complaining that the mat isn't locked and bailing on the build
-                newShaderName = $"Hidden/Locked/SPSPatched/{hash}";
+                newShaderName = $"Hidden/Locked/SelorePatched/{hash}";
             } else {
-                newShaderName = $"Hidden/SPSPatched/{hash}";
+                newShaderName = $"Hidden/SelorePatched/{hash}";
             }
             var alreadyExists = Shader.Find(newShaderName);
             if (alreadyExists != null) {
@@ -119,7 +122,7 @@ namespace org.Tayou.AmityEdits {
                 pass => {
                     patchedPasses++;
                     try {
-                        return PatchPass(pass, spsMain, false);
+                        return PatchPass(pass, seloreMain, false);
                     } catch (Exception e) {
                         throw new Exception($"Failed to patch pass #{patchedPasses}: " + e.Message, e);
                     }
@@ -128,7 +131,7 @@ namespace org.Tayou.AmityEdits {
                     if (GetRegex(@"\n[ \t]*#pragma[ \t]+surface").IsMatch(rest)) {
                         patchedPasses++;
                         try {
-                            return PatchPass(rest, spsMain, true);
+                            return PatchPass(rest, seloreMain, true);
                         } catch (Exception e) {
                             throw new Exception($"Failed to patch surface shader: " + e.Message, e);
                         }
@@ -146,7 +149,7 @@ namespace org.Tayou.AmityEdits {
                 }
 
                 if (!childShaders.TryGetValue(includedShader, out var rewrittenIncludedShader)) {
-                    var output = PatchUnsafe(includedShader, ctx, keepImports, hash);
+                    var output = PatchUnsafe(includedShader, ctx, keepImports, selection, hash);
                     patchedPasses += output.patchedPasses;
                     rewrittenIncludedShader = output.shader;
                     childShaders[includedShader] = rewrittenIncludedShader;
@@ -159,7 +162,7 @@ namespace org.Tayou.AmityEdits {
             }
 
             var assetContainerPath = Path.GetDirectoryName(AssetDatabase.GetAssetPath(ctx.AssetContainer));
-            var newPathDir = $"{assetContainerPath}/SPS";
+            var newPathDir = $"{assetContainerPath}/Selore";
             var newPath = $"{newPathDir}/{hash}.shader";
             AssetDatabaseHelper.WithAssetEditing(() => {
                 Directory.CreateDirectory(newPathDir);
@@ -180,8 +183,8 @@ namespace org.Tayou.AmityEdits {
             };
         }
 
-        private static string PatchPass(string pass, string spsMain, bool isSurfaceShader) {
-            var newVertFunction = "spsVert";
+        private static string PatchPass(string pass, string seloreMain, bool isSurfaceShader) {
+            var newVertFunction = "seloreVert";
             var pragmaKeyword = isSurfaceShader ? "surface" : "vertex";
             string oldVertFunction = null;
             var foundPragma = false;
@@ -200,7 +203,7 @@ namespace org.Tayou.AmityEdits {
                     }
                 } else {
                     oldVertFunction = match.Groups[2].ToString();
-                    newPragma = $"{match.Groups[1]}spsVert{match.Groups[3]}";
+                    newPragma = $"{match.Groups[1]}seloreVert{match.Groups[3]}";
                 }
 
                 foundPragma = true;
@@ -289,7 +292,7 @@ namespace org.Tayou.AmityEdits {
                 var paramList = foundOldVert[0].Item1;
                 returnType = foundOldVert[0].Item2;
 
-                var rewrittenInputParams = RewriteParamList(paramList, rewriteFirstParamTypeTo: "SpsInputs");
+                var rewrittenInputParams = RewriteParamList(paramList, rewriteFirstParamTypeTo: "SeloreInputs");
                 newInputParams = rewrittenInputParams.rewritten;
                 oldStructType = rewrittenInputParams.firstParamType;
                 mainParamName = rewrittenInputParams.firstParamName;
@@ -300,7 +303,7 @@ namespace org.Tayou.AmityEdits {
             } else {
                 oldStructType = "appdata_full";
                 returnType = "void";
-                newInputParams = "inout SpsInputs input";
+                newInputParams = "inout SeloreInputs input";
                 mainParamName = "input";
                 newPassParams = null;
             }
@@ -328,11 +331,11 @@ namespace org.Tayou.AmityEdits {
                 return defaultName;
             }
 
-            var vertexParam = FindParam("POSITION", "spsPosition", "float3");
-            var normalParam = FindParam("NORMAL", "spsNormal", "float3");
-            var vertexIdParam = FindParam("SV_VertexID", "spsVertexId", "uint");
-            var colorParam = FindParam("COLOR", "spsColor", "float4");
-            
+            var vertexParam = FindParam("POSITION", "selorePosition", "float3");
+            var normalParam = FindParam("NORMAL", "seloreNormal", "float3");
+            var vertexIdParam = FindParam("SV_VertexID", "seloreVertexId", "uint");
+            var colorParam = FindParam("COLOR", "seloreColor", "float4");
+
             var newHeader = new List<string>();
             // Enable appdata features in shaders where they may be controlled by preprocessor defines
             // liltoon
@@ -344,11 +347,11 @@ namespace org.Tayou.AmityEdits {
             newHeader.Add("#define _V2F_HAS_VERTEXCOLOR");
             // Filamented
             newHeader.Add("#define HAS_ATTRIBUTE_COLOR");
-            
+
             var newBody = new List<string>();
-            newBody.Add(spsMain);
+            newBody.Add(seloreMain);
             var extends = useStructExtends ? $" : {oldStructType}" : "";
-            newBody.Add($"struct SpsInputs{extends} {{");
+            newBody.Add($"struct SeloreInputs{extends} {{");
             newBody.Add(newStructBody);
             newBody.Add("};");
 
@@ -360,7 +363,7 @@ namespace org.Tayou.AmityEdits {
             }
 
             newBody.Add($"{returnType} {newVertFunction}({newInputParams}) {{");
-            newBody.Add($"  sps_apply({mainParamName}.{vertexParam}.xyz, {mainParamName}.{normalParam}, {mainParamName}.{vertexIdParam}, {mainParamName}.{colorParam});");
+            newBody.Add($"  selore_apply({mainParamName}.{vertexParam}.xyz, {mainParamName}.{normalParam}, {mainParamName}.{colorParam});");
             if (newPassParams != null) {
                 var ret = returnType == "void" ? "" : "return ";
                 newBody.Add($"  {ret}{oldVertFunction}({newPassParams});");
@@ -586,10 +589,23 @@ namespace org.Tayou.AmityEdits {
             return string.Join("\n", output);
         }
 
-        private static string GetPathToSps() {
-            return AssetDatabase.GUIDToAssetPath("6cf9adf85849489b97305dfeecc74768");
+        /// Resolve the absolute asset path to the include folder for a given
+        /// patch backend. The folder must contain selore_props.cginc /
+        /// selore_main.cginc and (optionally) Standard.shader.orig fallbacks.
+        private static string GetPathToIncludes(ShaderPatchSelection selection) {
+            var guid = selection.GetFolderAssetID();
+            if (string.IsNullOrEmpty(guid)) {
+                throw new Exception($"No include folder GUID configured for {selection}");
+            }
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(path)) {
+                throw new Exception($"Could not resolve include folder for {selection} (GUID {guid}). " +
+                                    "Make sure the package is installed correctly.");
+            }
+            return path;
         }
-        private static string ReadFile(Shader shader) {
+
+        private static string ReadFile(Shader shader, ShaderPatchSelection selection) {
             var path = AssetDatabase.GetAssetPath(shader);
             if (string.IsNullOrWhiteSpace(path)) {
                 throw new Exception("Failed to find source file for the shader");
