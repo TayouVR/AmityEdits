@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -596,16 +596,25 @@ namespace org.Tayou.AmityEdits {
             }
 
             if (path.StartsWith("Resources") || path.StartsWith("Library")) {
-                if (shader.name == "Standard") {
-                    path = $"{GetPathToSps()}/Standard.shader.orig";
-                } else if (shader.name == "Standard (Specular setup)") {
-                    path = $"{GetPathToSps()}/StandardSpecular.shader.orig";
+                if (shader.name == "Standard" || shader.name == "Standard (Specular setup)") {
+                    var includes = GetPathToIncludes(selection);
+                    var fileName = shader.name == "Standard"
+                        ? "Standard.shader.orig"
+                        : "StandardSpecular.shader.orig";
+                    var candidate = $"{includes}/{fileName}";
+                    if (!File.Exists(candidate)) {
+                        throw new Exception(
+                            $"Selore wants to patch Unity's built-in {shader.name} shader but " +
+                            $"could not find {fileName} in {includes}. " +
+                            "See Standard.shader.sourcing.md in the Selore folder for how to provide it.");
+                    }
+                    path = candidate;
                 } else if (shader.name.Contains("Error")) {
                     throw new Exception(
                         "This is an error shader. Please verify that the base material actually loads.");
                 } else {
                     throw new Exception(
-                        "SPS does not yet support this built-in unity shader.");
+                        "Selore does not yet support this built-in unity shader: " + shader.name);
                 }
             }
 
