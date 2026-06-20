@@ -70,8 +70,9 @@ namespace org.Tayou.AmityEdits {
 
         // follow spec as defined here: https://gist.github.com/TayouVR/aad7f8b6d83264b379d90e5100653a76
         private void CreateOrificeInPrefab(SeloreHole seloreHole) {
-            var rootObject = (object)seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.gameObject.transform;
+            var rootObject = seloreHole.targetObject == null ? seloreHole.gameObject.transform : seloreHole.targetObject;
 
+            Debug.Log($"Feature generation for orifice {seloreHole.name} in:");
             Debug.Log(rootObject);
             
             // Lights
