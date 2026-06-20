@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2023 Tayou <git@tayou.org>
  *
@@ -109,22 +109,27 @@ public class ShaderPatchOptionPoiyomiTPS : ShaderPatchOptionBase {
     }
 }
 
-public static class ShaderPathSelectionExtensions 
+public static class ShaderPathSelectionExtensions
 {
-    public static string GetFolderAssetID(this ShaderPatchSelection shaderPatchSelection) 
+    /// GUID of the folder that contains the selore_props.cginc / selore_main.cginc
+    /// (and friends) for the chosen patch backend. Currently only AmitySelore is
+    /// actually implemented; the others return the same folder so they degrade
+    /// to a no-op rather than crashing.
+    public static string GetFolderAssetID(this ShaderPatchSelection shaderPatchSelection)
     {
-        switch (shaderPatchSelection) 
+        switch (shaderPatchSelection)
         {
             case ShaderPatchSelection.AmitySelore:
-                return "6cf9adf85849489b97305dfeecc74768";
+                // GUID of Packages/org.tayou.amity/Shaders/Selore/
+                return "dd3f2c9a09cb49d1a37f8f0ad36c3941";
             case ShaderPatchSelection.VRCFurySPS:
-                return "6cf9adf85849489b97305dfeecc74768";
             case ShaderPatchSelection.RalivDPS:
-                return "6cf9adf85849489b97305dfeecc74768";
             case ShaderPatchSelection.PoiTPS:
-                return "6cf9adf85849489b97305dfeecc74768";
+                // Not implemented yet; fall back to the Selore folder so the
+                // patcher does something rather than throwing on a missing GUID.
+                return "dd3f2c9a09cb49d1a37f8f0ad36c3941";
             default:
-                return ""; // Choose a suitable default
+                return "";
         }
     }
 }
