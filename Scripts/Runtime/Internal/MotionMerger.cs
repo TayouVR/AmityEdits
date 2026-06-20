@@ -8,9 +8,13 @@ namespace org.Tayou.AmityEdits.Internal {
      * Merges a Motion (AnimationClip or BlendTree) into the Avatars Animator(s) 
      */
     public class MotionMerger : AmityBaseComponent, IVirtualizeMotion {
-        public int LayerPriority { get; set; }
-        public VRCAvatarDescriptor.AnimLayerType LayerType { get; set; }
-        public Motion Motion { get; set; }
+        [SerializeField] private int _layerPriority;
+        [SerializeField] private VRCAvatarDescriptor.AnimLayerType _layerType = VRCAvatarDescriptor.AnimLayerType.FX;
+        [SerializeField] private Motion _motion;
+
+        public int LayerPriority { get => _layerPriority; set => _layerPriority = value; }
+        public VRCAvatarDescriptor.AnimLayerType LayerType { get => _layerType; set => _layerType = value; }
+        public Motion Motion { get => _motion; set => _motion = value; }
         public string GetMotionBasePath(object ndmfBuildContext, bool clearPath = true) {
             return "";
         }

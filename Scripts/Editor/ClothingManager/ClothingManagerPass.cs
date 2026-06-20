@@ -184,9 +184,11 @@ namespace org.Tayou.AmityEdits {
             var restMotionMerge = maGameObject.AddComponent<MotionMerger>();
             restMotionMerge.Motion = restAnimation;
             restMotionMerge.LayerPriority = int.MinValue + 100;
+            restMotionMerge.LayerType = VRCAvatarDescriptor.AnimLayerType.FX;
             var primaryMotionMerge = maGameObject.AddComponent<MotionMerger>();
             primaryMotionMerge.Motion = directBlendTree.BlendTree;
             primaryMotionMerge.LayerPriority = int.MinValue + 100;
+            primaryMotionMerge.LayerType = VRCAvatarDescriptor.AnimLayerType.FX;
             
             // By creating a Modular Avatar Merge Animator component,
             // our animator controller will be added to the avatar's FX layer.
