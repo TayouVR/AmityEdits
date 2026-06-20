@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using org.Tayou.AmityEdits;
@@ -92,6 +94,86 @@ public class SeloreShaderPatcherEditor : UnityEditor.Editor {
         };
         advancedFoldout.contentContainer.Add(advancedContainer);
         root.Add(advancedFoldout);
+
+        // --- Build Summary ---
+        var summaryBox = Utils.InfoBox();
+
+        var sPatching = new Label();
+        var sLength = new Label();
+        var sTipLight = new Label();
+        var sSenders = new Label();
+        var sReceivers = new Label();
+
+        summaryBox.Add(Utils.Header("Build Summary"));
+        summaryBox.Add(sPatching);
+        summaryBox.Add(sLength);
+        summaryBox.Add(sTipLight);
+        summaryBox.Add(sSenders);
+        summaryBox.Add(sReceivers);
+        Utils.CreateToySupportRow(summaryBox, out var overallToySupport, out var toyPlug, out var toyTouch, out var toyFrot);
+
+        var sTarget = (SeloreShaderPatcher)serializedObject.targetObject;
+
+        int CountUniqueShaders() {
+            var r = sTarget.findRenderer
+                ? _autoDiscoveredRenderer
+                : sTarget.renderer;
+            if (r == null) return 0;
+            return r.sharedMaterials
+                .Where(m => m != null)
+                .Select(m => m.shader)
+                .Distinct()
+                .Count();
+        }
+
+        Action updateSummary = () => {
+            var t = sTarget;
+            var shaderTypeName = t.shaderToPatch switch {
+                ShaderPatchSelection.AmitySelore => "Amity",
+                ShaderPatchSelection.VRCFurySPS => "VRCFury",
+                ShaderPatchSelection.RalivDPS => "Raliv",
+                ShaderPatchSelection.PoiTPS => "Poiyomi",
+                _ => "Unknown"
+            };
+            int shaderCount = CountUniqueShaders();
+            sPatching.text = t.featureDeformationEnabled
+                ? $"Patching Shaders [{shaderTypeName}]: {shaderCount}"
+                : $"Patching Shaders [{shaderTypeName}]: DISABLED";
+            sPatching.style.color = t.featureDeformationEnabled ? Color.white : Color.red;
+            sLength.text = $"Length: {t.length:F2}m";
+            sLength.style.color = Color.white;
+            sTipLight.text = t.featureTipLight ? "Tip Light: ENABLED" : "Tip Light: DISABLED";
+            sTipLight.style.color = t.featureTipLight ? Color.green : Color.red;
+            sSenders.text = t.featureContactSenders
+                ? "Generating Contact Senders: 2"
+                : "Generating Contact Senders: 0";
+            sReceivers.text = Utils.BuildReceiverCountString(
+                t.featureToyContactReceivers,
+                t.featureToyContactReceivers,
+                t.featureToyContactReceivers,
+                t.featureToyContactReceivers
+            );
+            overallToySupport.style.color = t.featureToyContactReceivers ? Color.green : Color.red;
+            toyPlug.style.color = t.featureToyContactReceivers ? Color.green : Color.red;
+            toyTouch.style.color = t.featureToyContactReceivers ? Color.green : Color.red;
+            toyFrot.style.color = t.featureToyContactReceivers ? Color.green : Color.red;
+        };
+        updateSummary();
+
+        foreach (var p in new[] {
+                     serializedObject.FindProperty("featureDeformationEnabled"),
+                     serializedObject.FindProperty("featureTipLight"),
+                     serializedObject.FindProperty("featureContactSenders"),
+                     serializedObject.FindProperty("featureToyContactReceivers"),
+                     serializedObject.FindProperty("overrideLength"),
+                     serializedObject.FindProperty("length"),
+                     serializedObject.FindProperty("shaderToPatch"),
+                     
+                 }) {
+            summaryBox.TrackPropertyValue(p, _ => updateSummary());
+        }
+
+        root.Add(summaryBox);
 
         return root;
     }

@@ -44,23 +44,26 @@ namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(SeloreHole), true)]
     public class SeloreHoleEditor : AmityBaseEditor {
         private SeloreHole _targetComponent;
-        
+
         private void DrawHeaderCallback(Rect rect) {
             EditorGUI.LabelField(rect, "Targets");
         }
-        
+
         [DrawGizmo(GizmoType.Selected | GizmoType.NonSelected | GizmoType.Pickable)]
         static void DrawGizmo2(SeloreHole seloreHole, GizmoType gizmoType) {
             //if (!gizmo.show) return;
-            var rootObject = (UnityEngine.Object)seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.gameObject.transform;
-            DrawGizmo(rootObject.position, rootObject.rotation, seloreHole.role, "", Selection.activeGameObject == seloreHole.gameObject);
+            var rootObject = (UnityEngine.Object)seloreHole.targetObject != null
+                ? seloreHole.targetObject
+                : seloreHole.gameObject.transform;
+            DrawGizmo(rootObject.position, rootObject.rotation, seloreHole.role, "",
+                Selection.activeGameObject == seloreHole.gameObject);
         }
-        
+
         static void DrawGizmo(Vector3 worldPos, Quaternion worldRot, SeloreRole type, string name, bool selected) {
             var orange = new Color(1f, 0.5f, 0);
 
             var discColor = orange;
-            
+
             var text = "Selore Hole";
             if (!string.IsNullOrWhiteSpace(name)) text += $" '{name}'";
             if (!Utils.IsDesktop()) {
@@ -119,89 +122,137 @@ namespace org.Tayou.AmityEdits {
             Gizmos.color = Color.clear;
             Gizmos.DrawSphere(worldPos, 0.04f);
         }
-        
+
         private void OnEnable() {
-            _targetComponent = (SeloreHole) target;
+            _targetComponent = (SeloreHole)target;
             //EditorApplication.update += Update; // handle any continuous updates
         }
 
         public override VisualElement CreateInspector() {
             VisualElement root = new VisualElement();
-            _targetComponent ??= (SeloreHole) target;
-            
+            _targetComponent ??= (SeloreHole)target;
+
             // Properties
             var targetObjectProp = serializedObject.FindProperty("targetObject");
-            
+
             var depthParameterNameProp = serializedObject.FindProperty("depthParameterName");
             var penetratorWidthParameterNameProp = serializedObject.FindProperty("penetratorWidthParameterName");
             var penetratorLengthParameterNameProp = serializedObject.FindProperty("penetratorLengthParameterName");
-            
+
             var enableDeformationProp = serializedObject.FindProperty("enableDeformation");
             var enableContactSendersProp = serializedObject.FindProperty("enableContactSenders");
             var enableToyContactsProp = serializedObject.FindProperty("enableToyContacts");
             var channelProp = serializedObject.FindProperty("channel");
             var roleProp = serializedObject.FindProperty("role");
-            
+
             var featureLightsProp = serializedObject.FindProperty("featureLights");
             var featureContactSendersProp = serializedObject.FindProperty("featureContactSenders");
             var featureToyContactReceiversProp = serializedObject.FindProperty("featureToyContactReceivers");
             var featurePlugReceiversProp = serializedObject.FindProperty("featurePlugReceivers");
             var featureTouchReceiversProp = serializedObject.FindProperty("featureTouchReceivers");
             var featureFrotReceiverProp = serializedObject.FindProperty("featureFrotReceiver");
-            
+
             // Fields
             var targetObjectField = new PropertyField(targetObjectProp);
-            
+
             var depthParameterNameField = new PropertyField(depthParameterNameProp);
             var penetratorWidthParameterNameField = new PropertyField(penetratorWidthParameterNameProp);
             var penetratorLengthParameterNameField = new PropertyField(penetratorLengthParameterNameProp);
-            
+
             var enableDeformationField = new PropertyField(enableDeformationProp);
             var enableContactSendersField = new PropertyField(enableContactSendersProp);
             var enableToyContactsField = new PropertyField(enableToyContactsProp);
             var channelField = new PropertyField(channelProp);
             var roleField = new PropertyField(roleProp);
-            
+
             var featureLightsField = new PropertyField(featureLightsProp);
             var featureContactSendersField = new PropertyField(featureContactSendersProp);
             var featureToyContactReceiversField = new PropertyField(featureToyContactReceiversProp);
             var featurePlugReceiversField = new PropertyField(featurePlugReceiversProp, "Plugs");
             var featureTouchReceiversField = new PropertyField(featureTouchReceiversProp, "Touch (Finger, Hand)");
             var featureFrotReceiverField = new PropertyField(featureFrotReceiverProp, "Frotting");
-            
-            
+
+
             root.Add(targetObjectField);
-            
+
             root.Add(Utils.Header("Parameter Names"));
             root.Add(depthParameterNameField);
             root.Add(penetratorWidthParameterNameField);
             root.Add(penetratorLengthParameterNameField);
-            
+
             root.Add(Utils.Header("Properties (animatable)"));
             root.Add(enableDeformationField);
             root.Add(enableContactSendersField);
             root.Add(enableToyContactsField);
             root.Add(channelField);
             root.Add(roleField);
-            root.Add(Utils.InfoBox("these properties will be repathed on build to point to lights, contacts, etc. and animate the hole accordingly."));
-            
+            root.Add(Utils.InfoBox(
+                "these properties will be repathed on build to point to lights, contacts, etc. and animate the hole accordingly."));
+
             var advancedContainer = new VisualElement();
-            advancedContainer.Add(Utils.InfoBox("You Probably don't want to disable these, unless you know what you are doing.\n" +
-                                                "Disabling Lights or contacts will break deformation."));
+            advancedContainer.Add(Utils.InfoBox(
+                "You Probably don't want to disable these, unless you know what you are doing.\n" +
+                "Disabling Lights or contacts will break deformation."));
             advancedContainer.Add(featureLightsField);
             advancedContainer.Add(featureContactSendersField);
-            Utils.AddOverrideRow(advancedContainer, featureToyContactReceiversProp, featureToyContactReceiversField, new [] {
-                featurePlugReceiversField,
-                featureTouchReceiversField,
-                featureFrotReceiverField,
-            });
+            Utils.AddOverrideRow(advancedContainer, featureToyContactReceiversProp, featureToyContactReceiversField,
+                new[] {
+                    featurePlugReceiversField,
+                    featureTouchReceiversField,
+                    featureFrotReceiverField,
+                });
 
             var advancedFoldout = new Foldout {
                 text = "Advanced",
             };
             advancedFoldout.contentContainer.Add(advancedContainer);
-            
+
             root.Add(advancedFoldout);
+
+            // --- Build Summary ---
+            var summaryBox = Utils.InfoBox();
+
+            var sRole = new Label();
+            var sLights = new Label();
+            var sSenders = new Label();
+            var sReceivers = new Label();
+
+            summaryBox.Add(Utils.Header("Build Summary"));
+            summaryBox.Add(sRole);
+            summaryBox.Add(sLights);
+            summaryBox.Add(sSenders);
+            summaryBox.Add(sReceivers);
+            Utils.CreateToySupportRow(summaryBox, out var overall, out var toyPlug, out var toyTouch, out var toyFrot);
+
+            Action updateSummary = () => {
+                var h = _targetComponent;
+                sRole.text = $"Role: {h.role}";
+                sLights.text = h.featureLights ? "Generating Lights: 2" : "Generating Lights: 0";
+                sSenders.text = h.featureContactSenders
+                    ? "Generating Contact Senders: 2"
+                    : "Generating Contact Senders: 0";
+                sReceivers.text = Utils.BuildReceiverCountString(
+                    h.featureToyContactReceivers, h.featurePlugReceivers, h.featureTouchReceivers,
+                    h.featureFrotReceiver);
+                toyPlug.style.color = h.featurePlugReceivers ? Color.green : Color.red;
+                toyTouch.style.color = h.featureTouchReceivers ? Color.green : Color.red;
+                toyFrot.style.color = h.featureFrotReceiver ? Color.green : Color.red;
+            };
+            updateSummary();
+
+            foreach (var p in new[] {
+                         featureLightsProp, 
+                         featureContactSendersProp, 
+                         featureToyContactReceiversProp,
+                         featurePlugReceiversProp, 
+                         featureTouchReceiversProp, 
+                         featureFrotReceiverProp, 
+                         roleProp
+                     }) {
+                summaryBox.TrackPropertyValue(p, _ => updateSummary());
+            }
+
+            root.Add(summaryBox);
 
             return root;
         }

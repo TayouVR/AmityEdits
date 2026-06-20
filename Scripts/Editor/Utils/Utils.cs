@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -82,14 +83,16 @@ namespace org.Tayou.AmityEdits {
                    || EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneLinux64;
         }
 
-        public static Box InfoBox(string text) {
+        public static Box InfoBox([CanBeNull] string text = null) {
             var box = new Box()
                 .Border(1, 1)
                 .BorderColor(new Color(.3f,.3f,1,1))
                 .BorderRadius(2)
                 .Padding(5)
                 .Margin(5);
-            box.Add(new Label(text));
+            if (text != null) {
+                box.Add(new Label(text));
+            }
             return box;
         }
 
@@ -146,6 +149,43 @@ namespace org.Tayou.AmityEdits {
 
         private static void UpdateOverrideVisibility(VisualElement container, bool toggleValue, bool showWhenOn) {
             container.style.display = toggleValue == showWhenOn ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        /// <summary>
+        /// Builds the receiver count summary line, e.g. "Generating Contact Receivers: 11 (6 Plug, 2 Touch, 1 Frot)"
+        /// </summary>
+        public static string BuildReceiverCountString(bool toyReceiversEnabled, bool plugEnabled, bool touchEnabled, bool frotEnabled) {
+            if (!toyReceiversEnabled) return "Generating Contact Receivers: 0";
+
+            int plugCount = plugEnabled ? 6 : 0;
+            int touchCount = touchEnabled ? 2 : 0;
+            int frotCount = frotEnabled ? 1 : 0;
+            int total = plugCount + touchCount + frotCount;
+
+            var parts = new List<string>();
+            if (plugCount > 0) parts.Add($"{plugCount} Plug");
+            if (touchCount > 0) parts.Add($"{touchCount} Touch");
+            if (frotCount > 0) parts.Add($"{frotCount} Frot");
+            string detail = parts.Count > 0 ? $" ({string.Join(", ", parts)})" : "";
+            return $"Generating Contact Receivers: {total}{detail}";
+        }
+
+        /// <summary>
+        /// Creates a row with colored toy-support labels. Returns the three colored labels for updating.
+        /// </summary>
+        public static void CreateToySupportRow(VisualElement parent, out Label overall, out Label plug, out Label touch, out Label frot) {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.Add(new Label("Toy Support"));
+            row.Add(overall = new Label("ENABLED"));
+            row.Add(new Label(" ["));
+            row.Add(plug = new Label("Plugs"));
+            row.Add(new Label(", "));
+            row.Add(touch = new Label("Touch"));
+            row.Add(new Label(", "));
+            row.Add(frot = new Label("Frotting"));
+            row.Add(new Label("]"));
+            parent.Add(row);
         }
     }
 }
