@@ -145,6 +145,9 @@ namespace org.Tayou.AmityEdits {
             var featureLightsProp = serializedObject.FindProperty("featureLights");
             var featureContactSendersProp = serializedObject.FindProperty("featureContactSenders");
             var featureToyContactReceiversProp = serializedObject.FindProperty("featureToyContactReceivers");
+            var featurePlugReceiversProp = serializedObject.FindProperty("featurePlugReceivers");
+            var featureTouchReceiversProp = serializedObject.FindProperty("featureTouchReceivers");
+            var featureFrotReceiverProp = serializedObject.FindProperty("featureFrotReceiver");
             
             // Fields
             var targetObjectField = new PropertyField(targetObjectProp);
@@ -162,6 +165,9 @@ namespace org.Tayou.AmityEdits {
             var featureLightsField = new PropertyField(featureLightsProp);
             var featureContactSendersField = new PropertyField(featureContactSendersProp);
             var featureToyContactReceiversField = new PropertyField(featureToyContactReceiversProp);
+            var featurePlugReceiversField = new PropertyField(featurePlugReceiversProp);
+            var featureTouchReceiversField = new PropertyField(featureTouchReceiversProp);
+            var featureFrotReceiverField = new PropertyField(featureFrotReceiverProp);
             
             
             root.Add(targetObjectField);
@@ -185,6 +191,12 @@ namespace org.Tayou.AmityEdits {
             advancedContainer.Add(featureLightsField);
             advancedContainer.Add(featureContactSendersField);
             advancedContainer.Add(featureToyContactReceiversField);
+            var toySubContainer = new VisualElement();
+            toySubContainer.style.marginLeft = 20;
+            toySubContainer.Add(featurePlugReceiversField);
+            toySubContainer.Add(featureTouchReceiversField);
+            toySubContainer.Add(featureFrotReceiverField);
+            advancedContainer.Add(toySubContainer);
 
             var advancedFoldout = new Foldout {
                 text = "Advanced",

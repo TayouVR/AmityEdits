@@ -37,6 +37,9 @@ namespace org.Tayou.AmityEdits {
         public bool featureLights = true;
         public bool featureContactSenders = true;
         public bool featureToyContactReceivers = true;
+        public bool featurePlugReceivers = true;
+        public bool featureTouchReceivers = true;
+        public bool featureFrotReceiver = false;
 
         // animation - these properties may be animated.
         public bool enableDeformation;

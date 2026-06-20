@@ -103,8 +103,53 @@ namespace org.Tayou.AmityEdits {
         }
 
         // not part of DPS spec; check VRCFury, or OSCGoesBrr for spec or infer spec from build output/VRCF code
-        private void CreateToyContactReceivers(SeloreHole seloreHole, Transform receiversParentTransform) {
-            // TODO: implement toy contact receivers
+        private void CreateToyContactReceivers(SeloreHole seloreHole, Transform parent) {
+            const float plugContactRadius = 3f;
+            const float touchRadius = 0.05f;
+            const float frotRadius = 0.1f;
+
+            // Plug detection: tip, root, width
+            if (seloreHole.featurePlugReceivers) {
+                CreateReceiver("TipSelf",   plugContactRadius, "TPS_Pen_Penetrating", true,  false, parent);
+                CreateReceiver("TipOthers", plugContactRadius, "TPS_Pen_Penetrating", false, true,  parent);
+                CreateReceiver("RootSelf",  plugContactRadius, "TPS_Pen_Root",        true,  false, parent);
+                CreateReceiver("RootOthers", plugContactRadius, "TPS_Pen_Root",        false, true,  parent);
+                CreateReceiver("WidthSelf",  plugContactRadius, "TPS_Pen_Width",       true,  false, parent);
+                CreateReceiver("WidthOthers", plugContactRadius, "TPS_Pen_Width",       false, true,  parent);
+            }
+
+            // Touch detection: hands, fingers, feet
+            if (seloreHole.featureTouchReceivers) {
+                CreateReceiver("TouchSelf",
+                    touchRadius,
+                    new[] { "Hand", "Finger", "Foot" },
+                    true, false, parent);
+                CreateReceiver("TouchOthers",
+                    touchRadius,
+                    new[] { "Head", "Hand", "Foot", "Finger" },
+                    false, true, parent);
+            }
+
+            // Frottage: other orifice root
+            if (seloreHole.featureFrotReceiver) {
+                CreateReceiver("FrotOthers", frotRadius, "TPS_Orf_Root", false, true, parent);
+            }
+        }
+
+        private void CreateReceiver(string name, float radius, string tag, bool allowSelf, bool allowOthers, Transform parent) {
+            CreateReceiver(name, radius, new[] { tag }, allowSelf, allowOthers, parent);
+        }
+
+        private void CreateReceiver(string name, float radius, string[] tags, bool allowSelf, bool allowOthers, Transform parent) {
+            var obj = new GameObject(name, typeof(VRCContactReceiver));
+            obj.transform.SetParent(parent, false);
+            var r = obj.GetComponent<VRCContactReceiver>();
+            r.radius = radius;
+            r.receiverType = VRCContactReceiver.ReceiverType.Proximity;
+            r.collisionTags = new List<string>(tags);
+            r.allowSelf = allowSelf;
+            r.allowOthers = allowOthers;
+            r.localOnly = false;
         }
 
         private void CreateContactSender(SeloreLightRole lightRole, SeloreRole role, Transform parent) {
