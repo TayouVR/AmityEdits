@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -94,6 +95,57 @@ namespace org.Tayou.AmityEdits {
 
         public static Label Header(string text) {
             return new Label(text).Bold();
+        }
+
+        /// <summary>
+        /// Convenience: creates PropertyFields from property names on the given SerializedObject.
+        /// </summary>
+        public static void AddOverrideRow(
+            VisualElement root,
+            SerializedObject serializedObject,
+            string overrideProp,
+            string valueProp,
+            string label,
+            bool showWhenOn = true,
+            int indentPx = 20
+        ) {
+            var toggleProp = serializedObject.FindProperty(overrideProp);
+            var valueSerialized = serializedObject.FindProperty(valueProp);
+            var overrideField = new PropertyField(toggleProp, $"Override {label}");
+            var valueField = new PropertyField(valueSerialized, label);
+            AddOverrideRow(root, toggleProp, overrideField, new[] { valueField }, showWhenOn, indentPx);
+        }
+
+        /// <summary>
+        /// Full control: supply the toggle field and child elements.
+        /// Child fields are indented and shown/hidden based on the toggle state.
+        /// </summary>
+        public static void AddOverrideRow(
+            VisualElement root,
+            SerializedProperty toggleProp,
+            PropertyField overrideField,
+            VisualElement[] childFields,
+            bool showWhenOn = true,
+            int indentPx = 20
+        ) {
+            var childContainer = new VisualElement();
+            childContainer.style.marginLeft = indentPx;
+            foreach (var child in childFields) {
+                childContainer.Add(child);
+            }
+
+            root.Add(overrideField);
+            root.Add(childContainer);
+
+            UpdateOverrideVisibility(childContainer, toggleProp.boolValue, showWhenOn);
+
+            root.TrackPropertyValue(toggleProp, prop => {
+                UpdateOverrideVisibility(childContainer, prop.boolValue, showWhenOn);
+            });
+        }
+
+        private static void UpdateOverrideVisibility(VisualElement container, bool toggleValue, bool showWhenOn) {
+            container.style.display = toggleValue == showWhenOn ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 }

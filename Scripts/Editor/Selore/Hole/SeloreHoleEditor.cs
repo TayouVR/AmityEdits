@@ -165,9 +165,9 @@ namespace org.Tayou.AmityEdits {
             var featureLightsField = new PropertyField(featureLightsProp);
             var featureContactSendersField = new PropertyField(featureContactSendersProp);
             var featureToyContactReceiversField = new PropertyField(featureToyContactReceiversProp);
-            var featurePlugReceiversField = new PropertyField(featurePlugReceiversProp);
-            var featureTouchReceiversField = new PropertyField(featureTouchReceiversProp);
-            var featureFrotReceiverField = new PropertyField(featureFrotReceiverProp);
+            var featurePlugReceiversField = new PropertyField(featurePlugReceiversProp, "Plugs");
+            var featureTouchReceiversField = new PropertyField(featureTouchReceiversProp, "Touch (Finger, Hand)");
+            var featureFrotReceiverField = new PropertyField(featureFrotReceiverProp, "Frotting");
             
             
             root.Add(targetObjectField);
@@ -190,13 +190,11 @@ namespace org.Tayou.AmityEdits {
                                                 "Disabling Lights or contacts will break deformation."));
             advancedContainer.Add(featureLightsField);
             advancedContainer.Add(featureContactSendersField);
-            advancedContainer.Add(featureToyContactReceiversField);
-            var toySubContainer = new VisualElement();
-            toySubContainer.style.marginLeft = 20;
-            toySubContainer.Add(featurePlugReceiversField);
-            toySubContainer.Add(featureTouchReceiversField);
-            toySubContainer.Add(featureFrotReceiverField);
-            advancedContainer.Add(toySubContainer);
+            Utils.AddOverrideRow(advancedContainer, featureToyContactReceiversProp, featureToyContactReceiversField, new [] {
+                featurePlugReceiversField,
+                featureTouchReceiversField,
+                featureFrotReceiverField,
+            });
 
             var advancedFoldout = new Foldout {
                 text = "Advanced",

@@ -68,9 +68,9 @@ public class SeloreShaderPatcherEditor : UnityEditor.Editor {
         root.Add(new PropertyField(serializedObject.FindProperty("channel"), "Channel"));
         root.Add(new PropertyField(serializedObject.FindProperty("allTheWayThrough"), "All The Way Through"));
 
-        AddOverrideRow(root, "overrideStartPosition", "startPosition", "Start Position");
-        AddOverrideRow(root, "overrideStartRotation", "startRotation", "Start Rotation");
-        AddOverrideRow(root, "overrideLength",         "length",        "Length");
+        Utils.AddOverrideRow(root, serializedObject, "overrideStartPosition", "startPosition", "Start Position");
+        Utils.AddOverrideRow(root, serializedObject, "overrideStartRotation", "startRotation", "Start Rotation");
+        Utils.AddOverrideRow(root, serializedObject, "overrideLength",         "length",        "Length");
 
         // --- Advanced / feature toggles ------------------------------------
         root.Add(Utils.Header("Properties (animatable)"));
@@ -96,28 +96,5 @@ public class SeloreShaderPatcherEditor : UnityEditor.Editor {
         return root;
     }
 
-    /// Render an "override?" toggle plus a value field that is only shown
-    /// when the toggle is on.
-    private void AddOverrideRow(VisualElement root, string overrideProp, string valueProp, string label) {
-        var toggleProp = serializedObject.FindProperty(overrideProp);
-        var valueSerialized = serializedObject.FindProperty(valueProp);
-
-        var row = new VisualElement();
-        row.Add(new PropertyField(toggleProp, $"Override {label}"));
-        var valueField = new PropertyField(valueSerialized, label);
-        row.Add(valueField);
-
-        UpdateOverrideValueField(toggleProp, valueField);
-
-        row.TrackPropertyValue(toggleProp, property => {
-            UpdateOverrideValueField(property, valueField);
-        });
-        
-        root.Add(row);
-    }
-
-    private static void UpdateOverrideValueField(SerializedProperty toggleProp, VisualElement valueField) {
-        valueField.style.display = toggleProp.boolValue ? DisplayStyle.Flex : DisplayStyle.None;
-    }
 }
 }
