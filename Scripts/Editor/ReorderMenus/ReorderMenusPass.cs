@@ -80,7 +80,9 @@ namespace org.Tayou.AmityEdits {
             
             
             GetVrcfFields(avatarDescriptor, out string vrcfNextText, out var vrcfNextIcon );
-            
+
+            PersistOverrideSettings(rootMenu, nextText, nextIcon, vrcfNextText, vrcfNextIcon);
+
             nextText ??= vrcfNextText ?? "Next";
             nextIcon ??= vrcfNextIcon;
             
@@ -153,6 +155,36 @@ namespace org.Tayou.AmityEdits {
 
         private VRCExpressionsMenu GetSourceMenu(MenuLocation menuOperationSourceMenu) {
             throw new System.NotImplementedException();
+        }
+
+        // Store both Amity's and VRCFury's override settings separately so
+        // MenuDeduplicationPass (which runs after VRCFury has stripped everything)
+        // can still detect page buttons from either tool.
+        private void PersistOverrideSettings(VRCExpressionsMenu rootMenu,
+            string amityNextText, Texture2D amityNextIcon,
+            string vrcfNextText, Texture2D vrcfNextIcon) {
+            if (rootMenu == null) return;
+
+            var store = ScriptableObject.CreateInstance<VrcfOverrideSettingsStore>();
+            store.name = "_amity_override_settings";
+            store.amityNextText = amityNextText;
+            store.amityNextIcon = amityNextIcon;
+            store.vrcfNextText = vrcfNextText;
+            store.vrcfNextIcon = vrcfNextIcon;
+
+            var path = AssetDatabase.GetAssetPath(rootMenu);
+            if (!string.IsNullOrEmpty(path)) {
+                var existing = AssetDatabase.LoadAllAssetsAtPath(path)
+                    .OfType<VrcfOverrideSettingsStore>().ToArray();
+                foreach (var e in existing) AssetDatabase.RemoveObjectFromAsset(e);
+
+                AssetDatabase.AddObjectToAsset(store, rootMenu);
+                EditorUtility.SetDirty(rootMenu);
+                Debug.Log($"[Amity] Override settings stored as sub-asset: amity='{amityNextText}'/{amityNextIcon?.name}, vrcf='{vrcfNextText}'/{vrcfNextIcon?.name}");
+            } else {
+                store.hideFlags = HideFlags.DontUnloadUnusedAsset;
+                Debug.Log($"[Amity] Override settings stored (no asset path): amity='{amityNextText}'/{amityNextIcon?.name}, vrcf='{vrcfNextText}'/{vrcfNextIcon?.name}");
+            }
         }
 
         // Use VRCFuryFeatureUtils to look for OverrideMenuSettings feature on the avatar

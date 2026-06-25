@@ -22,7 +22,6 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Avatars.ScriptableObjects;
-using org.Tayou.AmityEdits.EditorUtils;
 using VRC.SDKBase.Editor.BuildPipeline;
 
 namespace org.Tayou.AmityEdits {
@@ -36,11 +35,14 @@ namespace org.Tayou.AmityEdits {
     ///
     /// This pass inlines Page2's stray "More" so Page2 contains the real content.
     internal class MenuDeduplicationPass : IVRCSDKPreprocessAvatarCallback {
-        // Runs after NDMF (likely CallbackOrder ~0) and VRCFury (-10000)
         public int callbackOrder => 10000;
 
-        private static readonly string[] PageButtonNames = {"More", "Next", "Next Page", "<color=green>More", "<color=green>More</color>"};
+        private static readonly string[] BuiltInPageButtonNames = {"More", "Next", "Next Page", "<color=green>More", "<color=green>More</color>"};
         private static Texture2D _ndmfMoreIcon;
+
+        private string[] _activePageButtonNames;
+        private Texture2D _amityIcon;
+        private Texture2D _vrcfIcon;
 
         public bool OnPreprocessAvatar(GameObject avatarGameObject) {
             Debug.Log($"[MenuDedup] OnPreprocessAvatar called on '{avatarGameObject.name}'");
@@ -64,19 +66,24 @@ namespace org.Tayou.AmityEdits {
                 Debug.Log($"[MenuDedup] NDMF More icon loaded: {(_ndmfMoreIcon != null ? _ndmfMoreIcon.name : "null")}");
             }
 
-            // Read MenuOptions for user-customized next-page appearance
-            var menuOptions = avatarGameObject.GetComponentsInChildren<MenuOptions>(true);
-            Debug.Log($"[MenuDedup] Found {menuOptions.Length} MenuOptions component(s)");
-            var nextText = menuOptions.Length > 0 ? menuOptions[0].nextPageButtonTitle : null;
-            var nextIcon = menuOptions.Length > 0 ? menuOptions[0].nextPageButtonIcon : null;
-            Debug.Log($"[MenuDedup] MenuOptions text='{nextText}', icon={nextIcon?.name}");
+            // Load stored override settings (both Amity's MenuOptions and VRCFury's OverrideMenuSettings)
+            var store = TryLoadStore(descriptor.expressionsMenu);
 
-            // Merge with VRCFury's OverrideMenuSettings
-            GetVrcfOverrideSettings(avatarGameObject, out var vrcfText, out var vrcfIcon);
-            Debug.Log($"[MenuDedup] VRCFury OverrideMenuSettings text='{vrcfText}', icon={vrcfIcon?.name}");
-            nextText = nextText ?? vrcfText ?? "Next";
-            nextIcon = nextIcon ?? vrcfIcon;
-            Debug.Log($"[MenuDedup] Final nextPage: text='{nextText}', icon={nextIcon?.name}");
+            // Build the dynamic detection list: static names + custom text from both sources
+            var names = new List<string>(BuiltInPageButtonNames);
+            if (store != null) {
+                if (!string.IsNullOrEmpty(store.amityNextText)) names.Add(store.amityNextText);
+                if (!string.IsNullOrEmpty(store.vrcfNextText)) names.Add(store.vrcfNextText);
+                _amityIcon = store.amityNextIcon;
+                _vrcfIcon = store.vrcfNextIcon;
+            }
+            _activePageButtonNames = names.ToArray();
+
+            // Resolve the "Next" button we create: prefer Amity's setting, then VRCFury's, then default
+            var nextText = store?.amityNextText ?? store?.vrcfNextText ?? "Next";
+            var nextIcon = store?.amityNextIcon ?? store?.vrcfNextIcon;
+            Debug.Log($"[MenuDedup] Will create new page buttons as '{nextText}', icon={nextIcon?.name}");
+            Debug.Log($"[MenuDedup] Page button detection list: [{string.Join(", ", _activePageButtonNames)}]");
 
             FixMenu(descriptor.expressionsMenu, nextText, nextIcon, new HashSet<VRCExpressionsMenu>());
             Debug.Log("[MenuDedup] OnPreprocessAvatar complete");
@@ -106,9 +113,6 @@ namespace org.Tayou.AmityEdits {
             }
 
             // 2. Inline stray pagination pages that appear as the FIRST control.
-            //    After both NDMF and VRCFury have paginated independently, a page
-            //    often starts with the other tool's "More"/"Next" button (e.g.
-            //    VRCFury's "Next" → page whose first item is NDMF's "More").
             int inlineCount = 0;
             while (menu.controls.Count > 0 && IsPageButton(menu.controls[0])) {
                 var btn = menu.controls[0];
@@ -131,7 +135,6 @@ namespace org.Tayou.AmityEdits {
 
                 VRCExpressionsMenu nextPage = null;
 
-                // Look for an existing "Next"/"More" control to reuse
                 for (int i = 0; i < menu.controls.Count; i++) {
                     var c = menu.controls[i];
                     if (c?.type == VRCExpressionsMenu.Control.ControlType.SubMenu && IsPageButton(c)) {
@@ -152,7 +155,6 @@ namespace org.Tayou.AmityEdits {
                     }
                 }
 
-                // Move excess controls (indices 7+) to the next page
                 int moved = 0;
                 while (menu.controls.Count > 7) {
                     var movedCtrl = menu.controls[7];
@@ -170,7 +172,6 @@ namespace org.Tayou.AmityEdits {
                 });
                 Debug.Log($"[MenuDedup]    Added '{(nextText ?? "Next")}' btn → '{nextPage.name}'. '{menu.name}' now has {menu.controls.Count} controls");
 
-                // Recurse into the new page (it might also exceed 8 controls)
                 visited.Remove(nextPage);
                 FixMenu(nextPage, nextText, nextIcon, visited);
             } else {
@@ -178,9 +179,11 @@ namespace org.Tayou.AmityEdits {
             }
         }
 
-        private static bool IsPageButton(VRCExpressionsMenu.Control control) {
+        // Checks against static names, custom names from Amity/VRCFury, and known icons.
+        private bool IsPageButton(VRCExpressionsMenu.Control control) {
             if (control?.type != VRCExpressionsMenu.Control.ControlType.SubMenu) return false;
-            if (PageButtonNames.Contains(control.name)) {
+
+            if (_activePageButtonNames.Contains(control.name)) {
                 Debug.Log($"[MenuDedup] IsPageButton: YES — name '{control.name}'");
                 return true;
             }
@@ -188,20 +191,47 @@ namespace org.Tayou.AmityEdits {
                 Debug.Log($"[MenuDedup] IsPageButton: YES — icon matches NDMF More icon (control name was '{control.name}')");
                 return true;
             }
+            if (_amityIcon != null && control.icon == _amityIcon) {
+                Debug.Log($"[MenuDedup] IsPageButton: YES — icon matches Amity icon (control name was '{control.name}')");
+                return true;
+            }
+            if (_vrcfIcon != null && control.icon == _vrcfIcon) {
+                Debug.Log($"[MenuDedup] IsPageButton: YES — icon matches VRCFury icon (control name was '{control.name}')");
+                return true;
+            }
             return false;
         }
 
-        private static void GetVrcfOverrideSettings(GameObject root, out string nextText, out Texture2D nextIcon) {
-            nextText = null;
-            nextIcon = null;
-            var model = VRCFuryFeatureUtils.GetOverrideMenuSettingsModel(root, true);
-            if (model != null) {
-                Debug.Log("[MenuDedup] Found VRCFury OverrideMenuSettings model, trying to read fields");
-                bool ok = VRCFuryFeatureUtils.TryReadOverrideMenuSettings(model, out nextText, out nextIcon);
-                Debug.Log($"[MenuDedup] TryReadOverrideMenuSettings returned {ok}, text='{nextText}', icon={nextIcon?.name}");
-            } else {
-                Debug.Log("[MenuDedup] No VRCFury OverrideMenuSettings found on avatar");
+        private static VrcfOverrideSettingsStore TryLoadStore(VRCExpressionsMenu rootMenu) {
+            VrcfOverrideSettingsStore store = null;
+
+            var path = AssetDatabase.GetAssetPath(rootMenu);
+            if (!string.IsNullOrEmpty(path)) {
+                store = AssetDatabase.LoadAllAssetsAtPath(path)
+                    .OfType<VrcfOverrideSettingsStore>()
+                    .FirstOrDefault();
+                if (store != null) {
+                    Debug.Log("[MenuDedup] Found store as sub-asset of root menu");
+                }
             }
+
+            if (store == null) {
+                store = Resources.FindObjectsOfTypeAll<VrcfOverrideSettingsStore>()
+                    .FirstOrDefault();
+                if (store != null) {
+                    Debug.Log("[MenuDedup] Found store via Resources.FindObjectsOfTypeAll");
+                }
+            }
+
+            if (store == null) {
+                Debug.LogWarning(
+                    "[MenuDedup] No VrcfOverrideSettingsStore found — " +
+                    "the sub-asset was likely not preserved by the build pipeline. " +
+                    "Falling back to defaults. Page button detection will only use " +
+                    "the built-in name list and NDMF icon."
+                );
+            }
+            return store;
         }
     }
 }
