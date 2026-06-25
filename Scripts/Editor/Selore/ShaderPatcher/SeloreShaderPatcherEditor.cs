@@ -44,11 +44,14 @@ public class SeloreShaderPatcherEditor : UnityEditor.Editor {
             objectType = typeof(Renderer),
         };
         autoRendererField.SetEnabled(false);
+
+        // Populate auto-discovered renderer at init time
+        _autoDiscoveredRenderer = GetResolvedRenderer();
         autoRendererField.SetValueWithoutNotify(_autoDiscoveredRenderer);
-        
+
         rendererFieldWrapper.Add(rendererField);
         rendererFieldWrapper.Add(autoRendererField);
-        
+
         void UpdateRendererFields(SerializedProperty property) {
             rendererField.style.display     = property.boolValue ? DisplayStyle.None : DisplayStyle.Flex;
             autoRendererField.style.display = property.boolValue ? DisplayStyle.Flex : DisplayStyle.None;
@@ -176,6 +179,19 @@ public class SeloreShaderPatcherEditor : UnityEditor.Editor {
         root.Add(summaryBox);
 
         return root;
+    }
+
+    /// Resolve the renderer that will be used at build time, so we can show
+    /// its blendshapes in the editor.  Mirrors the logic in SelorePatcherPass.
+    private Renderer GetResolvedRenderer() {
+        var target = serializedObject.targetObject as SeloreShaderPatcher;
+        if (target == null) return null;
+
+        if (!target.findRenderer && target.renderer != null) return target.renderer;
+
+        return target.GetComponent<Renderer>()
+            ?? target.GetComponentInParent<Renderer>()
+            ?? target.GetComponentInChildren<Renderer>(true);
     }
 
 }
