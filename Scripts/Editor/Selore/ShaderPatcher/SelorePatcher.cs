@@ -105,6 +105,7 @@ namespace org.Tayou.AmityEdits {
             }
             var alreadyExists = Shader.Find(newShaderName);
             if (alreadyExists != null) {
+                Debug.Log($"[Selore] Reusing existing patched shader '{newShaderName}'");
                 return new PatchResult {
                     shader = alreadyExists,
                     patchedPasses = 0
@@ -164,6 +165,7 @@ namespace org.Tayou.AmityEdits {
             var assetContainerPath = Path.GetDirectoryName(AssetDatabase.GetAssetPath(ctx.AssetContainer));
             var newPathDir = $"{assetContainerPath}/Selore";
             var newPath = $"{newPathDir}/{hash}.shader";
+            Debug.Log($"[Selore] Writing patched shader to {newPath}");
             AssetDatabaseHelper.WithAssetEditing(() => {
                 Directory.CreateDirectory(newPathDir);
                 WriteFile(newPath, contents);
@@ -171,11 +173,14 @@ namespace org.Tayou.AmityEdits {
             AssetDatabaseHelper.WithoutAssetEditing(() => {
                 AssetDatabase.ImportAsset(newPath, ImportAssetOptions.ForceSynchronousImport);
             });
+            Debug.Log($"[Selore] Imported {newPath}");
 
             var newShader = Shader.Find(newShaderName);
             if (!newShader) {
                 throw new Exception("Patch succeeded, but shader failed to compile. Check the unity log for compile error.\n\n" + newPath);
             }
+
+            Debug.Log($"[Selore] Patched shader ready: '{newShaderName}' ({newPath})");
 
             return new PatchResult {
                 shader = newShader,

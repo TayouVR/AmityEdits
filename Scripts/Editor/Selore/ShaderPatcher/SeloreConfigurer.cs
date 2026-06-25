@@ -56,6 +56,7 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
             SeloreAutoParams auto
         ) {
             var m = new Material(original);
+            m.name = $"{m.name}_SelorePatched";
             AssetDatabase.AddObjectToAsset(m, ctx.AssetContainer);
 
             SelorePatcher.Patch(m, ctx, plug.keepImports, plug.shaderToPatch);

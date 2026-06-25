@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2026 Tayou <git@tayou.org>
  *
@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System.Linq;
 using UnityEngine;
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits.ShaderPatcher;
@@ -38,9 +39,11 @@ namespace org.Tayou.AmityEdits {
                     continue;
                 }
 
+                var shared = renderer.sharedMaterials;
+                Debug.Log($"[Selore] Processing {plug.transform.GetHierarchyPath()} -> renderer={renderer.gameObject.name}, material count={shared.Length}");
+
                 var autoParams = ComputeAutoParams(plug, renderer);
 
-                var shared = renderer.sharedMaterials;
                 var patched = new Material[shared.Length];
                 var anyPatched = false;
                 for (var i = 0; i < shared.Length; i++) {
@@ -50,6 +53,8 @@ namespace org.Tayou.AmityEdits {
                         continue;
                     }
                     try {
+                        Debug.Log($"[Selore] Patching material '{mat.name}' on " +
+                                  $"{plug.transform.GetHierarchyPath()}. autoParams: {JsonUtility.ToJson(autoParams)}");
                         patched[i] = SeloreConfigurer.ConfigureSeloreMaterial(
                             ctx, renderer, mat, plug, autoParams);
                         anyPatched = true;
@@ -63,6 +68,8 @@ namespace org.Tayou.AmityEdits {
 
                 if (anyPatched) {
                     renderer.sharedMaterials = patched;
+                    var patchedCount = patched.Count(m => m != null && m.shader != null && m.shader.name.Contains("Selore"));
+                    Debug.Log($"[Selore] Assigned {patched.Length} materials to {renderer.gameObject.name} ({patchedCount} patched with Selore shader)");
                 }
 
                 if (plug.autoConfigureBounds) {
