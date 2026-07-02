@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
@@ -40,6 +40,7 @@ namespace org.Tayou.AmityEdits {
         public bool featurePlugReceivers = true;
         public bool featureTouchReceivers = true;
         public bool featureFrotReceiver = false;
+        public bool featureSpsCell = false;
 
         // animation - these properties may be animated.
         public bool enableDeformation;

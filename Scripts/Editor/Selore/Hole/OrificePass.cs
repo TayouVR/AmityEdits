@@ -25,6 +25,7 @@ using nadena.dev.ndmf;
 using nadena.dev.ndmf.vrchat;
 using UnityEditor.Animations;
 using VRC.SDK3.Dynamics.Contact.Components;
+using org.Tayou.AmityEdits.EditorSeloreSps;
 
 namespace org.Tayou.AmityEdits {
     
@@ -92,6 +93,11 @@ namespace org.Tayou.AmityEdits {
                 CreateContactSender(SeloreLightRole.Normal, seloreHole.role, sendersParent.transform);
             }
             
+            // SPS cell marker
+            if (seloreHole.featureSpsCell) {
+                CreateSpsMarker(seloreHole, rootObject);
+            }
+
             // toy contact receivers
             if (seloreHole.featureToyContactReceivers) {
                 var receiversParent = new GameObject("Receivers");
@@ -100,6 +106,98 @@ namespace org.Tayou.AmityEdits {
             }
             
             // TODO: repath animations for animatable component properties to lights and contacts
+        }
+
+        private void CreateSpsMarker(SeloreHole seloreHole, Transform root) {
+            var spsObj = new GameObject("SPS Cell", typeof(MeshFilter), typeof(MeshRenderer));
+            spsObj.transform.SetParent(root, false);
+
+            // Scale to near-zero so the marker is invisible in-editor.
+            // VRCFury uses an animator to restore scale to 1 at runtime.
+            spsObj.transform.localScale = Vector3.one * 0.001f;
+
+            // Trigger mesh: a single triangle
+            var mesh = new Mesh { name = "SpsTriggerMesh" };
+            mesh.vertices = new Vector3[] {
+                new Vector3(-5, -5, 0),
+                new Vector3(5, -5, 0),
+                new Vector3(-5, 5, 0)
+            };
+            mesh.uv = new Vector2[] {
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                new Vector2(0, 1)
+            };
+            mesh.triangles = new int[] { 0, 1, 2 };
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 5);
+            mesh.hideFlags = HideFlags.HideAndDontSave;
+
+            var mf = spsObj.GetComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+
+            // Shader: try Amity first, fall back to VRCFury
+            var shader = Shader.Find("Hidden/Amity/SpsSocketMarker");
+            if (shader == null) {
+                shader = Shader.Find("Hidden/VRCFury/SpsSocketMarker");
+            }
+
+            if (shader == null) {
+                Debug.LogWarning($"[Selore] SPS socket marker shader not found. Install Amity SPS or VRCFury.");
+                return;
+            }
+
+            var mat = new Material(shader) {
+                name = "SpsSocketMarker_Generated",
+                hideFlags = HideFlags.HideAndDontSave,
+                enableInstancing = true
+            };
+
+            var mr = spsObj.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+
+            // Compute flags from role (mirrors the preview logic)
+            uint flags = 0;
+            if (seloreHole.role == SeloreRole.Hole) {
+                flags |= SpsCellPreview.SOCKET_FLAG_HOLE;
+            } else if (seloreHole.role == SeloreRole.Ring) {
+                flags |= SpsCellPreview.SOCKET_FLAG_HOLE | SpsCellPreview.SOCKET_FLAG_DOUBLE_SIDED;
+            } else if (seloreHole.role == SeloreRole.ReversibleRing) {
+                flags |= SpsCellPreview.SOCKET_FLAG_DOUBLE_SIDED;
+            }
+
+            // Generate a stable ID from position
+            Transform target = seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.transform;
+            uint id = SpsCellPreview.ComputeIdFromWorld(target.position);
+
+            // Set material properties (property names must match VRCFury SPS)
+            mat.SetFloat("_SPS_Configured", 1f);
+            mat.SetFloat("_SPS_Id", id);
+            mat.SetFloat("_SPS_PlayerId", 0f);
+            mat.SetFloat("_SPS_SocketHole", (flags & SpsCellPreview.SOCKET_FLAG_HOLE) != 0 ? 1f : 0f);
+            mat.SetFloat("_SPS_SocketDoubleSided", (flags & SpsCellPreview.SOCKET_FLAG_DOUBLE_SIDED) != 0 ? 1f : 0f);
+            mat.SetFloat("_SPS_SocketRadiusOffset", 0f);
+            mat.SetFloat("_SPS_SocketNextId", 0f);
+            mat.SetFloat("_SPS_SocketUseTangentIn", 0f);
+            mat.SetFloat("_SPS_SocketUseTangentOut", 0f);
+
+            // Default shared tag (1337) to match VRCFury convention
+            mat.SetFloat("_SPS_SocketTag1", 1337f);
+            for (int i = 2; i <= 8; i++) {
+                mat.SetFloat("_SPS_SocketTag" + i, 0f);
+            }
+
+            // Mark all _SPS_ properties as animated to prevent shader stripping
+            foreach (var propName in new[] {
+                "_SPS_Configured", "_SPS_Id", "_SPS_PlayerId",
+                "_SPS_SocketHole", "_SPS_SocketDoubleSided", "_SPS_SocketRadiusOffset",
+                "_SPS_SocketNextId", "_SPS_SocketUseTangentIn", "_SPS_SocketUseTangentOut",
+                "_SPS_SocketTangentIn", "_SPS_SocketTangentOut"
+            }) {
+                mat.SetOverrideTag(propName + "Animated", "1");
+            }
+            for (int i = 1; i <= 8; i++) {
+                mat.SetOverrideTag($"_SPS_SocketTag{i}Animated", "1");
+            }
         }
 
         // not part of DPS spec; check VRCFury, or OSCGoesBrr for spec or infer spec from build output/VRCF code

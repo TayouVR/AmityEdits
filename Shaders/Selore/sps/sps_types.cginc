@@ -1,0 +1,11 @@
+#ifndef AMITY_SPS_INC_TYPES
+#define AMITY_SPS_INC_TYPES
+
+#include "sps_flags.cginc"
+
+#define AMITY_SPS_SOCKET_FLAG_HOLE 1u
+#define AMITY_SPS_SOCKET_FLAG_DOUBLE_SIDED 2u
+#define AMITY_SPS_SOCKET_FLAG_PORTAL 4u
+#define AMITY_SPS_SOCKET_FLAG_RADIUS_OFFSET 8u
+
+#endif

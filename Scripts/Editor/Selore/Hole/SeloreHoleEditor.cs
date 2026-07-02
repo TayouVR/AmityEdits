@@ -31,6 +31,7 @@
  */
 using System;
 using System.Collections.Generic;
+using org.Tayou.AmityEdits.EditorSeloreSps;
 using org.Tayou.AmityEdits.EditorUtils;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
@@ -206,6 +207,139 @@ namespace org.Tayou.AmityEdits {
 
             root.Add(advancedFoldout);
 
+            // --- SPS Cell Preview ---
+            var spsCellProp = serializedObject.FindProperty("featureSpsCell");
+            var spsCellField = new PropertyField(spsCellProp, "Write SPS Cell");
+
+            var spsFoldout = new Foldout { text = "SPS Cell Preview" };
+            spsFoldout.style.display = Target.featureSpsCell ? DisplayStyle.Flex : DisplayStyle.None;
+            root.TrackPropertyValue(spsCellProp, prop => {
+                spsFoldout.style.display = prop.boolValue ? DisplayStyle.Flex : DisplayStyle.None;
+            });
+
+            var zoomSlider = new SliderInt("Zoom", 5, 25) { value = 10 };
+            zoomSlider.style.flexGrow = 0;
+            zoomSlider.style.marginLeft = 4;
+            zoomSlider.style.marginRight = 4;
+
+            var spsInfoLabel = new Label("Hover over a pixel to inspect cell contents");
+            spsInfoLabel.style.whiteSpace = WhiteSpace.Normal;
+            spsInfoLabel.style.paddingLeft = 4;
+            spsInfoLabel.style.paddingTop = 2;
+            spsInfoLabel.style.fontSize = 10;
+
+            var previewContainer = new IMGUIContainer();
+            previewContainer.style.flexShrink = 0;
+            previewContainer.style.alignSelf = Align.FlexStart;
+            previewContainer.style.marginLeft = 4;
+
+            SeloreCellData currentData = default;
+            Texture2D cellTex = null;
+
+            Action rebuildCellPreview = () => {
+                currentData = EditorSeloreSps.SpsCellPreview.BuildPreviewData(Target);
+                if (cellTex != null) UnityEngine.Object.DestroyImmediate(cellTex);
+                cellTex = EditorSeloreSps.SpsCellPreview.RenderCell(currentData);
+                previewContainer.MarkDirtyRepaint();
+            };
+
+            Action updatePreviewSize = () => {
+                float size = SpsCellPreview.CELL_WIDTH * zoomSlider.value;
+                previewContainer.style.width = size;
+                previewContainer.style.maxWidth = size;
+                previewContainer.style.height = size;
+                previewContainer.style.maxHeight = size;
+                previewContainer.MarkDirtyRepaint();
+            };
+            updatePreviewSize();
+
+            zoomSlider.RegisterValueChangedCallback(_ => updatePreviewSize());
+
+            int hoveredIndex = -1;
+
+            previewContainer.onGUIHandler = () => {
+                float zoom = zoomSlider.value;
+                float displaySize = SpsCellPreview.CELL_WIDTH * zoom;
+
+                Rect rect = GUILayoutUtility.GetRect(displaySize, displaySize);
+                rect = EditorGUI.IndentedRect(rect);
+                if (rect.width < 16 || rect.height < 16) return;
+
+                if (cellTex != null) {
+                    EditorGUI.DrawTextureTransparent(rect, cellTex, ScaleMode.StretchToFill);
+
+                    // Grid overlay
+                    Handles.BeginGUI();
+                    Color gridColor = new Color(0, 0, 0, 0.25f);
+                    Handles.color = gridColor;
+                    for (int i = 0; i <= SpsCellPreview.CELL_WIDTH; i++) {
+                        float x = rect.x + i * zoom;
+                        Handles.DrawLine(new Vector3(x, rect.y), new Vector3(x, rect.y + displaySize));
+                    }
+                    for (int i = 0; i <= SpsCellPreview.CELL_HEIGHT; i++) {
+                        float y = rect.y + i * zoom;
+                        Handles.DrawLine(new Vector3(rect.x, y), new Vector3(rect.x + displaySize, y));
+                    }
+                    Handles.EndGUI();
+
+                    // Hover detection
+                    Vector2 mousePos = Event.current.mousePosition - new Vector2(rect.x, rect.y);
+                    int px = Mathf.FloorToInt(mousePos.x / zoom);
+                    int py = Mathf.FloorToInt(mousePos.y / zoom);
+
+                    if (px >= 0 && px < SpsCellPreview.CELL_WIDTH
+                        && py >= 0 && py < SpsCellPreview.CELL_HEIGHT
+                        && rect.Contains(Event.current.mousePosition)) {
+                        hoveredIndex = py * SpsCellPreview.CELL_WIDTH + px;
+
+                        EditorGUI.DrawRect(
+                            new Rect(rect.x + px * zoom, rect.y + py * zoom, zoom, zoom),
+                            new Color(1, 1, 0, 0.2f));
+
+                        string decoded = EditorSeloreSps.SpsCellPreview.DecodePixel(hoveredIndex, currentData);
+                        string sectionName = "Unknown";
+                        if (hoveredIndex == 0 || hoveredIndex == SpsCellPreview.CELL_WIDTH - 1
+                            || hoveredIndex == (SpsCellPreview.CELL_HEIGHT - 1) * SpsCellPreview.CELL_WIDTH
+                            || hoveredIndex == SpsCellPreview.CELL_HEIGHT * SpsCellPreview.CELL_WIDTH - 1)
+                            sectionName = "Magic Corner";
+                        else if (hoveredIndex < SpsCellPreview.CELL_PAYLOAD_START) sectionName = "Header (top row)";
+                        else if (hoveredIndex >= 240) sectionName = "Header (bottom row)";
+                        else sectionName = "Payload";
+
+                        spsInfoLabel.text =
+                            $"Pixel: ({px}, {py})  Index: {hoveredIndex}\n" +
+                            $"Section: {sectionName}\n" +
+                            $"Content: {decoded}";
+
+                        var tipRect = new Rect(
+                            Event.current.mousePosition + new Vector2(14, -10),
+                            new Vector2(320, 60));
+                        GUI.Box(tipRect, GUIContent.none);
+                        EditorGUI.DropShadowLabel(tipRect, decoded);
+
+                        previewContainer.MarkDirtyRepaint();
+                    } else {
+                        hoveredIndex = -1;
+                    }
+
+                    if (Event.current.type == EventType.MouseMove)
+                        Event.current.Use();
+                }
+            };
+
+            spsFoldout.Add(zoomSlider);
+            spsFoldout.Add(previewContainer);
+            spsFoldout.Add(spsInfoLabel);
+
+            root.TrackPropertyValue(spsCellProp, _ => { if (spsCellProp.boolValue) rebuildCellPreview(); });
+            root.TrackPropertyValue(targetObjectProp, _ => rebuildCellPreview());
+            root.TrackPropertyValue(roleProp, _ => rebuildCellPreview());
+
+            // --- SPS toggle (inside advanced, after frot) ---
+            advancedContainer.Add(spsCellField);
+
+            root.Add(spsFoldout);
+
             // --- Build Summary ---
             var summaryBox = Utils.InfoBox();
 
@@ -213,12 +347,14 @@ namespace org.Tayou.AmityEdits {
             var sLights = new Label();
             var sSenders = new Label();
             var sReceivers = new Label();
+            var sSpsCell = new Label();
 
             summaryBox.Add(Utils.Header("Build Summary"));
             summaryBox.Add(sRole);
             summaryBox.Add(sLights);
             summaryBox.Add(sSenders);
             summaryBox.Add(sReceivers);
+            summaryBox.Add(sSpsCell);
             Utils.CreateToySupportRow(summaryBox, out var overall, out var toyPlug, out var toyTouch, out var toyFrot);
 
             Action updateSummary = () => {
@@ -231,6 +367,7 @@ namespace org.Tayou.AmityEdits {
                 sReceivers.text = Utils.BuildReceiverCountString(
                     h.featureToyContactReceivers, h.featurePlugReceivers, h.featureTouchReceivers,
                     h.featureFrotReceiver);
+                sSpsCell.text = h.featureSpsCell ? "Generating SPS Cell: 1" : "Generating SPS Cell: 0";
                 toyPlug.style.color = h.featurePlugReceivers ? Color.green : Color.red;
                 toyTouch.style.color = h.featureTouchReceivers ? Color.green : Color.red;
                 toyFrot.style.color = h.featureFrotReceiver ? Color.green : Color.red;
@@ -244,7 +381,8 @@ namespace org.Tayou.AmityEdits {
                          featurePlugReceiversProp, 
                          featureTouchReceiversProp, 
                          featureFrotReceiverProp, 
-                         roleProp
+                         roleProp,
+                         spsCellProp
                      }) {
                 summaryBox.TrackPropertyValue(p, _ => updateSummary());
             }
