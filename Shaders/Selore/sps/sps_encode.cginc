@@ -46,4 +46,11 @@ uint amity_sps_decode_uint_raw(float4 rgba) {
     return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 }
 
+// Non-prefixed aliases for VRCFury compatibility
+#define sps_decode_channel amity_sps_decode_channel
+#define sps_encode_uint amity_sps_encode_uint
+#define sps_encode_float amity_sps_encode_float
+#define sps_decode_uint amity_sps_decode_uint
+#define sps_decode_uint_raw amity_sps_decode_uint_raw
+
 #endif

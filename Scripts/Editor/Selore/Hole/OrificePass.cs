@@ -152,8 +152,31 @@ namespace org.Tayou.AmityEdits {
                 enableInstancing = true
             };
 
+            // Generate a stable ID from position
+            Transform target = seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.transform;
+            uint id = SpsCellPreview.ComputeIdFromWorld(target.position);
+
+            // DataGrabPass material (second sub-material, reads at Background-940)
+            var grabShader = Shader.Find("Hidden/Amity/SpsDataGrabPass");
+            if (grabShader == null) {
+                grabShader = Shader.Find("Hidden/VRCFury/SpsDataGrabPass");
+            }
+            Material grabMat = null;
+            if (grabShader != null) {
+                grabMat = new Material(grabShader) {
+                    name = "SpsDataGrabPass_Generated",
+                    hideFlags = HideFlags.HideAndDontSave,
+                    enableInstancing = true
+                };
+                grabMat.SetFloat("_SPS_Configured", 1f);
+                grabMat.SetFloat("_SPS_Id", id);
+                grabMat.SetFloat("_SPS_PlayerId", 0f);
+            }
+
             var mr = spsObj.GetComponent<MeshRenderer>();
-            mr.sharedMaterial = mat;
+            mr.sharedMaterials = grabMat != null
+                ? new[] { mat, grabMat }
+                : new[] { mat };
 
             // Compute flags from role (mirrors the preview logic)
             uint flags = 0;
@@ -164,10 +187,6 @@ namespace org.Tayou.AmityEdits {
             } else if (seloreHole.role == SeloreRole.ReversibleRing) {
                 flags |= SpsCellPreview.SOCKET_FLAG_DOUBLE_SIDED;
             }
-
-            // Generate a stable ID from position
-            Transform target = seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.transform;
-            uint id = SpsCellPreview.ComputeIdFromWorld(target.position);
 
             // Set material properties (property names must match VRCFury SPS)
             mat.SetFloat("_SPS_Configured", 1f);

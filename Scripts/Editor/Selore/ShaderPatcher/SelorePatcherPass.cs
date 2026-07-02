@@ -18,6 +18,7 @@
 using System.Linq;
 using UnityEngine;
 using nadena.dev.ndmf;
+using org.Tayou.AmityEdits.EditorSeloreSps;
 using org.Tayou.AmityEdits.ShaderPatcher;
 
 namespace org.Tayou.AmityEdits {
@@ -75,7 +76,200 @@ namespace org.Tayou.AmityEdits {
                 if (plug.autoConfigureBounds) {
                     ConfigureBounds(renderer, autoParams);
                 }
+
+                // Create SPS resolver + DataGrabPass renderer if SPS is enabled
+                if (plug.featureSpsEnabled) {
+                    CreateSpsPlugRenderer(plug, renderer, ctx);
+                }
             }
+        }
+
+        private static void CreateSpsPlugRenderer(SeloreShaderPatcher plug, Renderer renderer, BuildContext ctx) {
+            // Resolver GameObject with two sub-materials: resolver + DataGrabPass
+            var resolverObj = new GameObject("SPS Plug Resolver", typeof(MeshFilter), typeof(MeshRenderer));
+            resolverObj.transform.SetParent(plug.transform, false);
+            resolverObj.transform.localPosition = Vector3.zero;
+            resolverObj.transform.localRotation = Quaternion.identity;
+            resolverObj.transform.localScale = Vector3.one * 0.001f;
+
+            // Trigger mesh (single triangle)
+            var mesh = new Mesh { name = "SpsPlugResolverMesh" };
+            mesh.vertices = new Vector3[] {
+                new Vector3(-5, -5, 0),
+                new Vector3(5, -5, 0),
+                new Vector3(-5, 5, 0)
+            };
+            mesh.uv = new Vector2[] {
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                new Vector2(0, 1)
+            };
+            mesh.triangles = new int[] { 0, 1, 2 };
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 5);
+            var mf = resolverObj.GetComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+
+            // Compute unique ID
+            uint id = plug.spsId != 0f
+                ? (uint)Mathf.RoundToInt(plug.spsId)
+                : SpsCellPreview.ComputeIdFromWorld(plug.transform.position);
+            uint playerId = (uint)Mathf.RoundToInt(plug.spsPlayerId);
+
+            // Build tag arrays from SpsTagRule lists
+            var tagInclude = new uint[4];
+            var tagExclude = new uint[4];
+            for (int i = 0; i < 4; i++) {
+                if (i < plug.spsIncludeTags.Count && !string.IsNullOrEmpty(plug.spsIncludeTags[i].tag)) {
+                    tagInclude[i] = SpsCellPreview.HashTag(plug.spsIncludeTags[i].tag);
+                }
+                if (i < plug.spsExcludeTags.Count && !string.IsNullOrEmpty(plug.spsExcludeTags[i].tag)) {
+                    tagExclude[i] = SpsCellPreview.HashTag(plug.spsExcludeTags[i].tag);
+                }
+            }
+
+            // Resolver shader
+            var resolverShader = Shader.Find("Hidden/Amity/SpsResolver");
+            if (resolverShader == null) {
+                resolverShader = Shader.Find("Hidden/VRCFury/SpsResolver");
+            }
+
+            // DataGrabPass shader
+            var grabShader = Shader.Find("Hidden/Amity/SpsDataGrabPass");
+            if (grabShader == null) {
+                grabShader = Shader.Find("Hidden/VRCFury/SpsDataGrabPass");
+            }
+
+            if (resolverShader == null) {
+                Debug.LogWarning("[Selore] SPS resolver shader not found. Install Amity SPS or VRCFury.");
+                return;
+            }
+
+            var resolverMat = new Material(resolverShader) {
+                name = "SpsPlugResolver_Generated",
+                hideFlags = HideFlags.HideAndDontSave,
+                enableInstancing = true
+            };
+
+            resolverMat.SetFloat("_SPS_Configured", 1f);
+            resolverMat.SetFloat("_SPS_Id", id);
+            resolverMat.SetFloat("_SPS_PlayerId", playerId);
+            resolverMat.SetFloat("_SPS_Enabled", 1f);
+            resolverMat.SetFloat("_SPS_Legacy", 1f);
+
+            // Write include tag rules
+            for (int i = 0; i < 4; i++) {
+                resolverMat.SetFloat("_SPS_TagInclude" + (i + 1), tagInclude[i]);
+                bool selfOk = i < plug.spsIncludeTags.Count ? plug.spsIncludeTags[i].allowSelf : true;
+                bool othersOk = i < plug.spsIncludeTags.Count ? plug.spsIncludeTags[i].allowOthers : true;
+                resolverMat.SetFloat("_SPS_TagInclude" + (i + 1) + "Self", selfOk ? 1f : 0f);
+                resolverMat.SetFloat("_SPS_TagInclude" + (i + 1) + "Others", othersOk ? 1f : 0f);
+            }
+
+            // Write exclude tag rules
+            for (int i = 0; i < 4; i++) {
+                resolverMat.SetFloat("_SPS_TagExclude" + (i + 1), tagExclude[i]);
+                bool selfOk = i < plug.spsExcludeTags.Count ? plug.spsExcludeTags[i].allowSelf : false;
+                bool othersOk = i < plug.spsExcludeTags.Count ? plug.spsExcludeTags[i].allowOthers : false;
+                resolverMat.SetFloat("_SPS_TagExclude" + (i + 1) + "Self", selfOk ? 1f : 0f);
+                resolverMat.SetFloat("_SPS_TagExclude" + (i + 1) + "Others", othersOk ? 1f : 0f);
+            }
+
+            // Compute radius samples from the plug mesh
+            ComputeRadiusSamples(renderer, resolverMat);
+
+            var mr = resolverObj.GetComponent<MeshRenderer>();
+            if (grabShader != null) {
+                var grabMatLocal = new Material(grabShader) {
+                    name = "SpsPlugDataGrabPass_Generated",
+                    hideFlags = HideFlags.HideAndDontSave,
+                    enableInstancing = true
+                };
+                grabMatLocal.SetFloat("_SPS_Configured", 1f);
+                grabMatLocal.SetFloat("_SPS_Id", id);
+                grabMatLocal.SetFloat("_SPS_PlayerId", playerId);
+                mr.sharedMaterials = new[] { resolverMat, grabMatLocal };
+            } else {
+                mr.sharedMaterials = new[] { resolverMat };
+            }
+
+            // Mark all _SPS_ properties as animated
+            foreach (var propName in new[] {
+                "_SPS_Configured", "_SPS_Id", "_SPS_PlayerId",
+                "_SPS_Enabled", "_SPS_Legacy"
+            }) {
+                resolverMat.SetOverrideTag(propName + "Animated", "1");
+            }
+            for (int i = 1; i <= 4; i++) {
+                resolverMat.SetOverrideTag($"_SPS_TagInclude{i}Animated", "1");
+                resolverMat.SetOverrideTag($"_SPS_TagInclude{i}SelfAnimated", "1");
+                resolverMat.SetOverrideTag($"_SPS_TagInclude{i}OthersAnimated", "1");
+                resolverMat.SetOverrideTag($"_SPS_TagExclude{i}Animated", "1");
+                resolverMat.SetOverrideTag($"_SPS_TagExclude{i}SelfAnimated", "1");
+                resolverMat.SetOverrideTag($"_SPS_TagExclude{i}OthersAnimated", "1");
+            }
+        }
+
+        // Compute radius samples from the plug mesh (75th percentile XY distance per Z bucket)
+        private static void ComputeRadiusSamples(Renderer renderer, Material resolverMat) {
+            const int bucketCount = 32;
+
+            var mesh = renderer.GetMesh();
+            if (mesh == null) return;
+
+            var vertices = mesh.vertices;
+            if (vertices.Length == 0) return;
+
+            // Find bounding box along local Z
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+            foreach (var v in vertices) {
+                if (v.z < minZ) minZ = v.z;
+                if (v.z > maxZ) maxZ = v.z;
+            }
+
+            float zRange = maxZ - minZ;
+            if (zRange < 0.0001f) return;
+
+            // Allocate per-bucket lists
+            var bucketDists = new System.Collections.Generic.List<float>[bucketCount];
+            for (int i = 0; i < bucketCount; i++) {
+                bucketDists[i] = new System.Collections.Generic.List<float>();
+            }
+
+            foreach (var v in vertices) {
+                int bucket = Mathf.FloorToInt((v.z - minZ) / zRange * (bucketCount - 1));
+                bucket = Mathf.Clamp(bucket, 0, bucketCount - 1);
+                float dist = Mathf.Sqrt(v.x * v.x + v.y * v.y);
+                bucketDists[bucket].Add(dist);
+            }
+
+            // Compute 75th percentile per bucket and pack into float4
+            // 8 float4s = 32 floats (one per bucket)
+            for (int bucket = 0; bucket < bucketCount; bucket++) {
+                var dists = bucketDists[bucket];
+                if (dists.Count == 0) continue;
+                dists.Sort();
+                int p75Idx = Mathf.FloorToInt(dists.Count * 0.75f);
+                p75Idx = Mathf.Clamp(p75Idx, 0, dists.Count - 1);
+                float radius = dists[p75Idx];
+
+                int vecIdx = bucket / 4;
+                int compIdx = bucket % 4;
+                string propName = $"_SPS_BakedRadiusSamples{vecIdx}";
+                var current = resolverMat.HasProperty(propName)
+                    ? resolverMat.GetVector(propName)
+                    : Vector4.zero;
+                switch (compIdx) {
+                    case 0: current.x = radius; break;
+                    case 1: current.y = radius; break;
+                    case 2: current.z = radius; break;
+                    case 3: current.w = radius; break;
+                }
+                resolverMat.SetVector(propName, current);
+            }
+
+            // Baked length and radius
+            resolverMat.SetFloat("_SPS_BakedLength", zRange);
+            resolverMat.SetFloat("_SPS_BakedRadius", zRange * 0.5f);
         }
 
         // Resolve the renderer to patch: explicit reference, or nearest renderer

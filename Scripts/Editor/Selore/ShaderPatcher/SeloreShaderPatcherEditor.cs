@@ -97,6 +97,24 @@ public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
         advancedFoldout.contentContainer.Add(advancedContainer);
         root.Add(advancedFoldout);
 
+        // --- SPS foldout ---
+        var spsFoldout = new Foldout { text = "SPS (Plug-side)" };
+        var spsContainer = new VisualElement();
+        spsContainer.Add(new PropertyField(serializedObject.FindProperty("featureSpsEnabled"), "Enable SPS Plug"));
+        spsContainer.Add(new PropertyField(serializedObject.FindProperty("spsId"), "SPS ID"));
+        spsContainer.Add(new PropertyField(serializedObject.FindProperty("spsPlayerId"), "SPS Player ID"));
+
+        // Tag include rules
+        var includeTagsProp = serializedObject.FindProperty("spsIncludeTags");
+        spsContainer.Add(new PropertyField(includeTagsProp, "Include Tags"));
+
+        // Tag exclude rules
+        var excludeTagsProp = serializedObject.FindProperty("spsExcludeTags");
+        spsContainer.Add(new PropertyField(excludeTagsProp, "Exclude Tags"));
+
+        spsFoldout.contentContainer.Add(spsContainer);
+        root.Add(spsFoldout);
+
         // --- Build Summary ---
         var summaryBox = Utils.InfoBox();
 
@@ -105,6 +123,7 @@ public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
         var sTipLight = new Label();
         var sSenders = new Label();
         var sReceivers = new Label();
+        var sSps = new Label();
 
         summaryBox.Add(Utils.Header("Build Summary"));
         summaryBox.Add(sPatching);
@@ -112,6 +131,7 @@ public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
         summaryBox.Add(sTipLight);
         summaryBox.Add(sSenders);
         summaryBox.Add(sReceivers);
+        summaryBox.Add(sSps);
         Utils.CreateToySupportRow(summaryBox, out var overallToySupport, out var toyPlug, out var toyTouch, out var toyFrot);
 
         var sTarget = (SeloreShaderPatcher)serializedObject.targetObject;
@@ -155,6 +175,8 @@ public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
                 t.featureToyContactReceivers,
                 t.featureToyContactReceivers
             );
+            sSps.text = t.featureSpsEnabled ? "SPS Plug: ENABLED" : "SPS Plug: DISABLED";
+            sSps.style.color = t.featureSpsEnabled ? Color.green : Color.red;
             overallToySupport.style.color = t.featureToyContactReceivers ? Color.green : Color.red;
             toyPlug.style.color = t.featureToyContactReceivers ? Color.green : Color.red;
             toyTouch.style.color = t.featureToyContactReceivers ? Color.green : Color.red;
@@ -170,7 +192,7 @@ public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
                      serializedObject.FindProperty("overrideLength"),
                      serializedObject.FindProperty("length"),
                      serializedObject.FindProperty("shaderToPatch"),
-                     
+                     serializedObject.FindProperty("featureSpsEnabled"),
                  }) {
             summaryBox.TrackPropertyValue(p, _ => updateSummary());
         }

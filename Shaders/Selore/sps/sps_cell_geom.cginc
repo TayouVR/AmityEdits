@@ -37,4 +37,10 @@ inline float4 amity_sps_cell_geom_vertex(int index, int vertexIndex) {
     return float4(ndc, 0, 1);
 }
 
+// Non-prefixed aliases for VRCFury compatibility
+#define SPS_CELL_VERTEX_STREAM AMITY_SPS_CELL_VERTEX_STREAM
+#define SPS_CELL_GEOM AMITY_SPS_CELL_GEOM
+#define sps_cell_geom_uv amity_sps_cell_geom_uv
+#define sps_cell_geom_vertex amity_sps_cell_geom_vertex
+
 #endif

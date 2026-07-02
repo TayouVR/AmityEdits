@@ -17,6 +17,7 @@
  */
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits;
+using org.Tayou.AmityEdits.EditorSeloreSps;
 using UnityEditor;
 using UnityEngine;
 
@@ -43,6 +44,10 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
         private const string PropLength = "Selore_PenetratorLength";
         private const string PropChannel = "Selore_Channel";
         private const string PropAllTheWayThrough = "Selore_AllTheWayThrough";
+
+        private const string PropSpsEnabled = "Selore_UseSps";
+        private const string PropSpsId = "Selore_SpsId";
+        private const string PropSpsPlayerId = "Selore_SpsPlayerId";
 
         /// Patch the shader of `original`, then write all Selore_* properties on a
         /// fresh copy of the material. Returns the new patched material. The new
@@ -86,6 +91,16 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
             SetFloatIfHas(m, PropLength, length);
             SetFloatIfHas(m, PropChannel, (float)(int)plug.channel);
             SetFloatIfHas(m, PropAllTheWayThrough, plug.allTheWayThrough ? 1f : 0f);
+
+            // SPS properties
+            if (plug.featureSpsEnabled) {
+                SetFloatIfHas(m, PropSpsEnabled, 1f);
+                uint spsId = plug.spsId != 0f
+                    ? (uint)Mathf.RoundToInt(plug.spsId)
+                    : SpsCellPreview.ComputeIdFromWorld(plug.transform.position);
+                SetFloatIfHas(m, PropSpsId, spsId);
+                SetFloatIfHas(m, PropSpsPlayerId, plug.spsPlayerId);
+            }
 
             return m;
         }

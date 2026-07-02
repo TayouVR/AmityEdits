@@ -36,4 +36,10 @@ inline bool amity_sps_dictionary_frag(
     return true;
 }
 
+// Non-prefixed aliases for VRCFury compatibility
+#define SPS_DICTIONARY_INDEX AMITY_SPS_DICTIONARY_INDEX
+#define sps_dictionary_vert amity_sps_dictionary_vert
+#define sps_dictionary_group_used amity_sps_dictionary_group_used
+#define sps_dictionary_frag amity_sps_dictionary_frag
+
 #endif

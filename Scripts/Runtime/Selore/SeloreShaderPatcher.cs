@@ -86,6 +86,23 @@ namespace org.Tayou.AmityEdits {
 
         public bool spsOverrun;
         public bool keepImports;
+
+        // ------------------------------------------------------------------
+        // SPS plug configuration
+        // ------------------------------------------------------------------
+
+        /** Whether SPS resolver + plug deformation is enabled. */
+        public bool featureSpsEnabled;
+        /** SPS unique ID for this plug (0 = auto from world position). */
+        public float spsId;
+        /** SPS player ID for this plug (0 = local player). */
+        public float spsPlayerId;
+        /** Tag include rules for socket matching. */
+        public System.Collections.Generic.List<SpsTagRule> spsIncludeTags
+            = new System.Collections.Generic.List<SpsTagRule>();
+        /** Tag exclude rules for socket matching. */
+        public System.Collections.Generic.List<SpsTagRule> spsExcludeTags
+            = new System.Collections.Generic.List<SpsTagRule>();
     }
 }
 

@@ -30,3 +30,8 @@ Selore_PenetratorLength ("Length", Float) = 0.2
 [HideInInspector] Selore_BezierHandleSize ("Bezier Handle Size", Range(0.05,0.5)) = 0.15
 [HideInInspector] Selore_SplineDebug ("Spline Debug (reference impl only)", Float) = 0
 [HideInInspector] _Selore_Patched ("Selore Patched", Float) = 1
+
+[Header(SPS Options)]
+[Toggle(SELORE_SPS)] Selore_UseSps ("Use SPS", Float) = 0
+Selore_SpsId ("SPS ID", Float) = 0
+Selore_SpsPlayerId ("SPS Player ID", Float) = 0

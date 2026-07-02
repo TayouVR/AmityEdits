@@ -28,7 +28,33 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
     
     Selore_OrificeData o1;
     Selore_OrificeData o2;
+
+#if defined(SELORE_SPS)
+    {
+        SpsTexture gridTex = SPS_GET_TEX(_VFGridFinal);
+        uint uniqueId = sps_to_uint(Selore_SpsId);
+        if (uniqueId == 0u) uniqueId = sps_hash_world(sps_object_origin_world(), 0u);
+        uint playerId = sps_to_uint(Selore_SpsPlayerId);
+
+        float3 socketWorld, socketForward, socketUp;
+        float socketScale;
+        if (selore_sps_read_plug(Selore_UseSps, gridTex, uniqueId, playerId,
+            socketWorld, socketForward, socketUp, socketScale)) {
+            o1.position = socketWorld;
+            o1.normal = socketForward;
+            o1.normalLightPosition = 0;
+            o1.type = SELORE_LIGHT_ROLE_HOLE;
+            o1.isValid = true;
+            o2 = o1;
+            o2.isValid = false;
+        } else {
+            o1.isValid = false;
+            o2.isValid = false;
+        }
+    }
+#else
     GetOrifices(Selore_Channel, worldStartPosition, o1, o2);
+#endif
     
     if (o1.isValid) {
         float3x3 startMatrix = EulerToRotMatrix(Selore_StartRotation);

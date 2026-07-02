@@ -23,4 +23,9 @@ uint amity_sps_hashed_index_from_uint(uint seed, uint replica, uint slotCount) {
     return amity_sps_hash_mix(seed ^ amity_sps_hash_mix(replica)) % max(slotCount, 1);
 }
 
+// Non-prefixed aliases for VRCFury compatibility
+#define sps_hash_mix amity_sps_hash_mix
+#define sps_hash_world amity_sps_hash_world
+#define sps_hashed_index_from_uint amity_sps_hashed_index_from_uint
+
 #endif

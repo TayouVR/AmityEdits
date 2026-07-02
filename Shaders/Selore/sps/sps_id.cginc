@@ -20,7 +20,14 @@ bool amity_sps_should_abort() {
         return unity_StereoEyeIndex != 0;
     #else
         return false;
-    #endif
+// Non-prefixed aliases for VRCFury compatibility
+#define sps_should_abort amity_sps_should_abort
+#define sps_player_id amity_sps_player_id
+#define sps_id amity_sps_id
+#define sps_hash_id amity_sps_hash_id
+#define sps_id_hash amity_sps_id_hash
+
+#endif
 }
 
 uint amity_sps_player_id() {

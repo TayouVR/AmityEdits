@@ -49,6 +49,17 @@ float Selore_AllTheWayThrough;
 float Selore_BezierHandleSize;
 float Selore_SplineDebug;
 
-// TODO: see SPS, add blendshape baking feature, as some users may need it.
+float Selore_UseSps;
+float Selore_SpsId;
+float Selore_SpsPlayerId;
+
+#if defined(SELORE_SPS)
+    #include "sps/sps_utils.cginc"
+    #include "sps/sps_id.cginc"
+    #include "sps/sps_cell_layout.cginc"
+    #include "sps/sps_resolver_types.cginc"
+    #include "sps/sps_plug.cginc"
+    SPS_INIT_TEX(_VFGridFinal)
+#endif
 
 #endif

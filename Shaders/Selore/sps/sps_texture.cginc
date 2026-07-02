@@ -45,4 +45,11 @@ inline AmitySpsTexture AmityMakeSpsTexture(Texture2DArray texArray, float4 texel
     #define AMITY_SPS_GET_TEX(tex) AmityMakeSpsTexture(tex, tex##_TexelSize)
 #endif
 
+// Non-prefixed aliases for VRCFury compatibility
+#define SpsTexture AmitySpsTexture
+#define MakeSpsTexture AmityMakeSpsTexture
+#define SPS_READ_TEX AMITY_SPS_READ_TEX
+#define SPS_INIT_TEX AMITY_SPS_INIT_TEX
+#define SPS_GET_TEX AMITY_SPS_GET_TEX
+
 #endif

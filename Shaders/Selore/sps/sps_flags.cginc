@@ -9,4 +9,8 @@ void amity_sps_set_flag(inout uint flags, uint flag) {
     flags |= flag;
 }
 
+// Non-prefixed aliases for VRCFury compatibility
+#define sps_has_flag amity_sps_has_flag
+#define sps_set_flag amity_sps_set_flag
+
 #endif
