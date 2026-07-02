@@ -207,6 +207,24 @@ namespace org.Tayou.AmityEdits {
 
             root.Add(advancedFoldout);
 
+            // --- Socket Tags section ---
+            var spsTagsProp = serializedObject.FindProperty("spsTags");
+            var spsUseSharedTagProp = serializedObject.FindProperty("spsUseSharedTag");
+
+            var tagsFoldout = new Foldout { text = "Socket Tags" };
+            tagsFoldout.style.marginLeft = 4;
+            tagsFoldout.style.marginBottom = 2;
+
+            var tagsField = new PropertyField(spsTagsProp, "Tags");
+            tagsField.tooltip = "Up to 2 tags. These are hashed (FNV-1a, 24-bit) and written into the SPS cell payload.";
+            var useSharedTagField = new PropertyField(spsUseSharedTagProp, "Use Shared Tag (1337)");
+            useSharedTagField.tooltip = "Include the global SPS shared tag (1337) so generic VRCFury plugs can find this socket.";
+
+            tagsFoldout.Add(tagsField);
+            tagsFoldout.Add(useSharedTagField);
+            root.Add(tagsFoldout);
+
+
             // --- SPS Cell Preview ---
             var spsCellProp = serializedObject.FindProperty("featureSpsCell");
             var spsCellField = new PropertyField(spsCellProp, "Write SPS Cell");
@@ -216,7 +234,6 @@ namespace org.Tayou.AmityEdits {
             root.TrackPropertyValue(spsCellProp, prop => {
                 spsFoldout.style.display = prop.boolValue ? DisplayStyle.Flex : DisplayStyle.None;
             });
-
             var zoomSlider = new SliderInt("Zoom", 5, 25) { value = 10 };
             zoomSlider.style.flexGrow = 0;
             zoomSlider.style.marginLeft = 4;
@@ -237,6 +254,7 @@ namespace org.Tayou.AmityEdits {
             Texture2D cellTex = null;
 
             Action rebuildCellPreview = () => {
+                serializedObject.ApplyModifiedProperties();
                 currentData = EditorSeloreSps.SpsCellPreview.BuildPreviewData(Target);
                 if (cellTex != null) UnityEngine.Object.DestroyImmediate(cellTex);
                 cellTex = EditorSeloreSps.SpsCellPreview.RenderCell(currentData);
@@ -334,6 +352,8 @@ namespace org.Tayou.AmityEdits {
             root.TrackPropertyValue(spsCellProp, _ => { if (spsCellProp.boolValue) rebuildCellPreview(); });
             root.TrackPropertyValue(targetObjectProp, _ => rebuildCellPreview());
             root.TrackPropertyValue(roleProp, _ => rebuildCellPreview());
+            root.TrackPropertyValue(spsTagsProp, _ => rebuildCellPreview());
+            root.TrackPropertyValue(spsUseSharedTagProp, _ => rebuildCellPreview());
 
             // --- SPS toggle (inside advanced, after frot) ---
             advancedContainer.Add(spsCellField);

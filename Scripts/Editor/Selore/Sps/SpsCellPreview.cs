@@ -378,10 +378,45 @@ namespace org.Tayou.AmityEdits.EditorSeloreSps {
         }
 
         /// <summary>
+        /// FNV-1a hash of an SPS tag string, matching VRCFury's HashTag exactly.
+        /// Returns a 24-bit value (masked to 0x00ffffff), never 0.
+        /// </summary>
+        public static uint HashTag(string tag) {
+            if (string.IsNullOrWhiteSpace(tag)) return 0;
+            var n = tag.Trim().ToLowerInvariant();
+            uint h = 2166136261;
+            foreach (var c in n) {
+                h ^= c;
+                h *= 16777619;
+            }
+            h &= 0x00ffffffu;
+            return h == 0 ? 1u : h;
+        }
+
+        /// <summary>
         /// Deterministic ID from a world position (mirrors the shader's fallback).
         /// </summary>
         public static uint ComputeIdFromWorld(Vector3 worldPos) {
             return HashWorld(worldPos, 0);
+        }
+
+        static uint[] BuildTagsFromHole(SeloreHole hole) {
+            var result = new uint[8];
+            int slot = 0;
+
+            if (hole.spsTags != null) {
+                foreach (var t in hole.spsTags) {
+                    if (slot >= 8) break;
+                    uint h = HashTag(t);
+                    if (h != 0) result[slot++] = h;
+                }
+            }
+
+            if (hole.spsUseSharedTag && slot < 8) {
+                result[slot++] = 1337;
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -416,7 +451,7 @@ namespace org.Tayou.AmityEdits.EditorSeloreSps {
                 scale = root.lossyScale.magnitude,
                 flags = flags,
                 nextId = 0,
-                tags = new uint[] { 1337, 0, 0, 0, 0, 0, 0, 0 },
+                tags = BuildTagsFromHole(hole),
                 tangentIn = Vector3.zero,
                 tangentOut = Vector3.zero,
                 debugColor = new Color(0, 0, 0, 0),

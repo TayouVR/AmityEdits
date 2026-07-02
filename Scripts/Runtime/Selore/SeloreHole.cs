@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+﻿// SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Copyright (C) 2025 Tayou <git@tayou.org>
  *
@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
@@ -48,6 +49,15 @@ namespace org.Tayou.AmityEdits {
         public bool enableToyContacts;
         public SeloreChannel channel;
         public SeloreRole role;
+
+        // SPS socket tags (max 2 user tags)
+        public List<string> spsTags = new List<string>();
+        public bool spsUseSharedTag = true;
+
+        void OnValidate() {
+            if (spsTags == null) spsTags = new List<string>();
+            while (spsTags.Count > 2) spsTags.RemoveAt(spsTags.Count - 1);
+        }
     }
 
     public enum SeloreChannel {

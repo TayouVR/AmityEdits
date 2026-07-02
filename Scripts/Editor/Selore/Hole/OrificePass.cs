@@ -180,10 +180,24 @@ namespace org.Tayou.AmityEdits {
             mat.SetFloat("_SPS_SocketUseTangentIn", 0f);
             mat.SetFloat("_SPS_SocketUseTangentOut", 0f);
 
-            // Default shared tag (1337) to match VRCFury convention
-            mat.SetFloat("_SPS_SocketTag1", 1337f);
-            for (int i = 2; i <= 8; i++) {
-                mat.SetFloat("_SPS_SocketTag" + i, 0f);
+            // Build tag array: user tags first, then shared tag (matching VRCFury convention)
+            var tagValues = new uint[8];
+            int tagSlot = 0;
+
+            if (seloreHole.spsTags != null) {
+                foreach (var t in seloreHole.spsTags) {
+                    if (tagSlot >= 8) break;
+                    uint h = SpsCellPreview.HashTag(t);
+                    if (h != 0) tagValues[tagSlot++] = h;
+                }
+            }
+
+            if (seloreHole.spsUseSharedTag && tagSlot < 8) {
+                tagValues[tagSlot++] = 1337;
+            }
+
+            for (int i = 0; i < 8; i++) {
+                mat.SetFloat("_SPS_SocketTag" + (i + 1), tagValues[i]);
             }
 
             // Mark all _SPS_ properties as animated to prevent shader stripping
