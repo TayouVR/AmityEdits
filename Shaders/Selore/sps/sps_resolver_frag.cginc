@@ -1,7 +1,13 @@
 #ifndef AMITY_SPS_INC_RESOLVER_FRAG
 #define AMITY_SPS_INC_RESOLVER_FRAG
 
+#include "sps_cell_frag.cginc"
+#include "sps_cell_layout.cginc"
+#include "sps_id.cginc"
+#include "sps_resolver_geom.cginc"
 #include "sps_resolver_shader_types.cginc"
+#include "sps_resolver_types.cginc"
+#include "sps_utils.cginc"
 
 bool sps_resolver_tag_match(
     SpsCell socketCell,
@@ -86,17 +92,17 @@ int sps_resolver_find_socket(
     int startReplica,
     out SpsCell foundCell
 ) {
-    uint slotCount = sps_socket_slot_count();
+    int slotCount = sps_socket_slot_count();
     uint slotSeed = sps_hash_id(myUniqueId, myPlayerId);
 
     for (int r = startReplica; r < SPS_CELL_REPLICA_COUNT; r++) {
-        uint candidateIdx = sps_hashed_screen_slot_index_from_id(slotSeed, (uint)r);
+        int candidateIdx = (int)sps_hashed_screen_slot_index_from_id(slotSeed, (uint)r);
         if (candidateIdx >= slotCount) continue;
 
-        int2 origin = sps_cell_origin_from_index((int)candidateIdx);
+        int2 origin = sps_cell_origin_from_index(candidateIdx);
         if (!sps_cell_check_magic(gridTex, uint2(origin))) continue;
 
-        SpsCell cell = sps_get_cell(gridTex, (int)candidateIdx);
+        SpsCell cell = sps_get_cell(gridTex, candidateIdx);
         uint product = cell.read_uint(SPS_HEADER_PRODUCT_INDEX);
         if (product != SPS_PRODUCT_SOCKET) continue;
 
@@ -105,13 +111,13 @@ int sps_resolver_find_socket(
             uint cellId = cell.read_uint(SPS_HEADER_UNIQUE_ID_INDEX);
             if (cellId == myUniqueId) {
                 foundCell = cell;
-                return (int)candidateIdx;
+                return candidateIdx;
             }
         }
 
         if (sps_resolver_tag_match(cell, cellPlayerId)) {
             foundCell = cell;
-            return (int)candidateIdx;
+            return candidateIdx;
         }
     }
 

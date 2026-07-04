@@ -71,8 +71,10 @@ Shader "Hidden/Amity/SpsResolver" {
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "sps_cell_layout.cginc"
+            #include "sps_cell_geom.cginc"
+            #include "sps_cell_frag.cginc"
+            #include "sps_id.cginc"
             SPS_INIT_TEX(_VFGrid56)
-            #include "sps_resolver_types.cginc"
             #include "sps_resolver_shader_types.cginc"
             #include "sps_resolver_geom.cginc"
             #include "sps_resolver_frag.cginc"

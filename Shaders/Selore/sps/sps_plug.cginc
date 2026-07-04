@@ -5,6 +5,7 @@
 // from _VFGridFinal (captured by DataGrabPass after resolver runs).
 
 #include "sps_cell_layout.cginc"
+#include "sps_id.cginc"
 #include "sps_resolver_types.cginc"
 
 // Read plug cell data for deformation.

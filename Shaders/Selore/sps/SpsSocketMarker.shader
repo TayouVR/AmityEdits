@@ -43,8 +43,8 @@ Shader "Hidden/Amity/SpsSocketMarker" {
             #pragma geometry geom
             #pragma fragment frag
             #pragma multi_compile_instancing
-            #include "../sps/sps_cell_frag.cginc"
             #include "../sps/sps_cell_geom.cginc"
+            #include "../sps/sps_cell_frag.cginc"
             #include "../sps/sps_cell_hash.cginc"
             #include "../sps/sps_types.cginc"
             #include "../sps/sps_utils.cginc"
@@ -135,6 +135,54 @@ Shader "Hidden/Amity/SpsSocketMarker" {
                 AMITY_SPS_CELL_GEOM(o, stream)
             }
 
+            bool amity_sps_try_get_socket_payload_rgba(
+                uint index,
+                uint flags,
+                uint nextId,
+                uint tags[AMITY_SPS_SOCKET_PAYLOAD_TAG_COUNT],
+                float3 tangentIn,
+                float3 tangentOut,
+                out float4 rgba
+            ) {
+                rgba = 0;
+                if (index == amity_sps_cell_pixel_index_from_payload_index(AMITY_SPS_SOCKET_PAYLOAD_FLAGS)) {
+                    rgba = amity_sps_encode_uint(flags);
+                    return true;
+                }
+                if (index == amity_sps_cell_pixel_index_from_payload_index(AMITY_SPS_SOCKET_PAYLOAD_NEXT_ID)) {
+                    rgba = amity_sps_encode_uint(nextId);
+                    return true;
+                }
+                uint payloadIndex;
+                if (!amity_sps_cell_payload_index_from_pixel_index(index, payloadIndex)) return false;
+                if (payloadIndex >= AMITY_SPS_SOCKET_PAYLOAD_TAG_START
+                    && payloadIndex < AMITY_SPS_SOCKET_PAYLOAD_TAG_START + AMITY_SPS_SOCKET_PAYLOAD_TAG_COUNT) {
+                    rgba = amity_sps_encode_uint(tags[payloadIndex - AMITY_SPS_SOCKET_PAYLOAD_TAG_START]);
+                    return true;
+                }
+                if (payloadIndex >= AMITY_SPS_SOCKET_PAYLOAD_TANGENT_IN_START
+                    && payloadIndex < AMITY_SPS_SOCKET_PAYLOAD_TANGENT_IN_START + 3u) {
+                    float comp = 0;
+                    uint off = payloadIndex - AMITY_SPS_SOCKET_PAYLOAD_TANGENT_IN_START;
+                    if (off == 0u) comp = tangentIn.x;
+                    else if (off == 1u) comp = tangentIn.y;
+                    else comp = tangentIn.z;
+                    rgba = amity_sps_encode_float(comp);
+                    return true;
+                }
+                if (payloadIndex >= AMITY_SPS_SOCKET_PAYLOAD_TANGENT_OUT_START
+                    && payloadIndex < AMITY_SPS_SOCKET_PAYLOAD_TANGENT_OUT_START + 3u) {
+                    float comp = 0;
+                    uint off = payloadIndex - AMITY_SPS_SOCKET_PAYLOAD_TANGENT_OUT_START;
+                    if (off == 0u) comp = tangentOut.x;
+                    else if (off == 1u) comp = tangentOut.y;
+                    else comp = tangentOut.z;
+                    rgba = amity_sps_encode_float(comp);
+                    return true;
+                }
+                return false;
+            }
+
             float4 frag(g2f i) : SV_Target {
                 UNITY_SETUP_INSTANCE_ID(i);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
@@ -197,54 +245,6 @@ Shader "Hidden/Amity/SpsSocketMarker" {
                     return rgba;
                 }
                 return 0;
-            }
-
-            bool amity_sps_try_get_socket_payload_rgba(
-                uint index,
-                uint flags,
-                uint nextId,
-                uint tags[AMITY_SPS_SOCKET_PAYLOAD_TAG_COUNT],
-                float3 tangentIn,
-                float3 tangentOut,
-                out float4 rgba
-            ) {
-                rgba = 0;
-                if (index == amity_sps_cell_pixel_index_from_payload_index(AMITY_SPS_SOCKET_PAYLOAD_FLAGS)) {
-                    rgba = amity_sps_encode_uint(flags);
-                    return true;
-                }
-                if (index == amity_sps_cell_pixel_index_from_payload_index(AMITY_SPS_SOCKET_PAYLOAD_NEXT_ID)) {
-                    rgba = amity_sps_encode_uint(nextId);
-                    return true;
-                }
-                uint payloadIndex;
-                if (!amity_sps_cell_payload_index_from_pixel_index(index, payloadIndex)) return false;
-                if (payloadIndex >= AMITY_SPS_SOCKET_PAYLOAD_TAG_START
-                    && payloadIndex < AMITY_SPS_SOCKET_PAYLOAD_TAG_START + AMITY_SPS_SOCKET_PAYLOAD_TAG_COUNT) {
-                    rgba = amity_sps_encode_uint(tags[payloadIndex - AMITY_SPS_SOCKET_PAYLOAD_TAG_START]);
-                    return true;
-                }
-                if (payloadIndex >= AMITY_SPS_SOCKET_PAYLOAD_TANGENT_IN_START
-                    && payloadIndex < AMITY_SPS_SOCKET_PAYLOAD_TANGENT_IN_START + 3u) {
-                    float comp = 0;
-                    uint off = payloadIndex - AMITY_SPS_SOCKET_PAYLOAD_TANGENT_IN_START;
-                    if (off == 0u) comp = tangentIn.x;
-                    else if (off == 1u) comp = tangentIn.y;
-                    else comp = tangentIn.z;
-                    rgba = amity_sps_encode_float(comp);
-                    return true;
-                }
-                if (payloadIndex >= AMITY_SPS_SOCKET_PAYLOAD_TANGENT_OUT_START
-                    && payloadIndex < AMITY_SPS_SOCKET_PAYLOAD_TANGENT_OUT_START + 3u) {
-                    float comp = 0;
-                    uint off = payloadIndex - AMITY_SPS_SOCKET_PAYLOAD_TANGENT_OUT_START;
-                    if (off == 0u) comp = tangentOut.x;
-                    else if (off == 1u) comp = tangentOut.y;
-                    else comp = tangentOut.z;
-                    rgba = amity_sps_encode_float(comp);
-                    return true;
-                }
-                return false;
             }
             ENDCG
         }

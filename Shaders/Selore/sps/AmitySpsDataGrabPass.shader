@@ -25,8 +25,8 @@ Shader "Hidden/Amity/SpsDataGrabPass" {
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "sps_texture.cginc"
-            #include "sps_cell_frag.cginc"
             #include "sps_cell_geom.cginc"
+            #include "sps_cell_frag.cginc"
             #include "sps_id.cginc"
 
             struct appdata {

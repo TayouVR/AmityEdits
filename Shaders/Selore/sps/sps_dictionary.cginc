@@ -7,10 +7,6 @@
 
 #define AMITY_SPS_DICTIONARY_INDEX (-1)
 
-inline float4 amity_sps_dictionary_vert(int vertexIndex) {
-    return amity_sps_cell_geom_vertex(AMITY_SPS_DICTIONARY_INDEX, vertexIndex);
-}
-
 inline bool amity_sps_dictionary_group_used(uint group) {
     uint slotSeed = amity_sps_id_hash();
     [unroll]
@@ -38,7 +34,6 @@ inline bool amity_sps_dictionary_frag(
 
 // Non-prefixed aliases for VRCFury compatibility
 #define SPS_DICTIONARY_INDEX AMITY_SPS_DICTIONARY_INDEX
-#define sps_dictionary_vert amity_sps_dictionary_vert
 #define sps_dictionary_group_used amity_sps_dictionary_group_used
 #define sps_dictionary_frag amity_sps_dictionary_frag
 

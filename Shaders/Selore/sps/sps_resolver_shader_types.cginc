@@ -1,5 +1,7 @@
 #ifndef AMITY_SPS_INC_RESOLVER_SHADER_TYPES
 #define AMITY_SPS_INC_RESOLVER_SHADER_TYPES
+#include <HLSLSupport.cginc>
+#include <UnityInstancing.cginc>
 
 UNITY_INSTANCING_BUFFER_START(AmitySpsResolverProps)
     UNITY_DEFINE_INSTANCED_PROP(float, _SPS_Legacy)

@@ -1,5 +1,6 @@
 #ifndef AMITY_SPS_INC_RESOLVER_GEOM
 #define AMITY_SPS_INC_RESOLVER_GEOM
+#include <UnityInstancing.cginc>
 
 struct appdata {
     float4 vertex : POSITION;

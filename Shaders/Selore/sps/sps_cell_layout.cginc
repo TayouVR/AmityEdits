@@ -97,10 +97,10 @@ inline int amity_sps_cell_grid_columns() {
     return max(1, (int)floor(_ScreenParams.x / AMITY_SPS_CELL_WIDTH));
 }
 
-inline uint amity_sps_socket_slot_count() {
+inline int amity_sps_socket_slot_count() {
     int cols = amity_sps_cell_grid_columns();
     int rows = max(1, (int)floor(_ScreenParams.y / AMITY_SPS_CELL_HEIGHT));
-    return (uint)max(1, min(cols * rows - 1, (int)AMITY_SPS_SOCKET_MAX_SLOTS));
+    return max(1, min(cols * rows - 1, (int)AMITY_SPS_SOCKET_MAX_SLOTS));
 }
 
 inline uint amity_sps_hashed_screen_slot_index_from_id(uint id, uint replica) {
