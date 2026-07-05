@@ -82,6 +82,7 @@ namespace org.Tayou.AmityEdits {
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
             sequence.Run(new ReorderMenusPass());
+            sequence.Run(new SpsGridDebugPass());
             
             sequence = InPhase(BuildPhase.Optimizing);
             // Do Optimizations here
