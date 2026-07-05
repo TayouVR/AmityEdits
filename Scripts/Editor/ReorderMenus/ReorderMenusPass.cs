@@ -86,9 +86,9 @@ namespace org.Tayou.AmityEdits {
             nextText ??= vrcfNextText ?? "Next";
             nextIcon ??= vrcfNextIcon;
             
-            if (rootMenu != null) {
-                FixMenu(rootMenu, nextText, nextIcon, new HashSet<VRCExpressionsMenu>());
-            }
+            // if (rootMenu != null) {
+            //     FixMenu(rootMenu, nextText, nextIcon, new HashSet<VRCExpressionsMenu>());
+            // }
         }
 
         private void FixMenu(VRCExpressionsMenu menu, string nextText, Texture2D nextIcon, HashSet<VRCExpressionsMenu> visited) {

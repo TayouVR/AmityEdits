@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -101,13 +103,13 @@ namespace org.Tayou.AmityEdits {
                 return;
             }
 
-            Debug.Log($"[MenuDedup] FixMenu '{menu.name}' — {menu.controls.Count} controls, {(menu.controls.Count > 8 ? "OVERFLOW" : "OK")}");
+            Debug.Log($"[MenuDedup] FixMenu '{menu.name}' — {menu.controls.Count} controls, [{string.Join(',', menu.controls.Select(a => a.name))}");
 
             // 1. Depth-first recursion into all submenus
             for (int i = 0; i < menu.controls.Count; i++) {
                 var c = menu.controls[i];
                 if (c?.type == VRCExpressionsMenu.Control.ControlType.SubMenu && c.subMenu != null) {
-                    Debug.Log($"[MenuDedup]  '{menu.name}' recursing into submenu[{i}]: '{c.name}' → '{c.subMenu.name}'");
+                    //Debug.Log($"[MenuDedup]  '{menu.name}' recursing into submenu[{i}]: '{c.name}' → '{c.subMenu.name}'");
                     FixMenu(c.subMenu, nextText, nextIcon, visited);
                 }
             }
@@ -175,7 +177,7 @@ namespace org.Tayou.AmityEdits {
                 visited.Remove(nextPage);
                 FixMenu(nextPage, nextText, nextIcon, visited);
             } else {
-                Debug.Log($"[MenuDedup]  '{menu.name}' done — {menu.controls.Count} controls, no pagination needed");
+                //Debug.Log($"[MenuDedup]  '{menu.name}' done — {menu.controls.Count} controls, no pagination needed");
             }
         }
 
