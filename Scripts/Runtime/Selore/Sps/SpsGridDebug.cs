@@ -6,10 +6,19 @@ namespace org.Tayou.AmityEdits {
     public class SpsGridDebug : AmityBaseComponent {
         [Header("Visibility")]
         public bool showOverlay = true;
+        public bool showSockets = true;
+        public bool showPlugs;
         public bool showRing = true;
         public bool showArrow = true;
         public bool showTags = true;
         public bool showChainLinks = true;
+
+        [Header("Appearance")]
+        [Range(0.1f, 10f)]
+        public float gizmoScale = 1f;
+        [Range(0.5f, 8f)]
+        public float lineWidthPixels = 2f;
+        public bool depthTested;
 
         [Header("Colors")]
         public Color holeColor = new Color(1f, 0.2f, 0.2f, 0.9f);

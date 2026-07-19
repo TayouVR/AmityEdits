@@ -19,11 +19,19 @@ namespace org.Tayou.AmityEdits {
 
             // --- Visual Elements foldout ---
             var elementsFoldout = new Foldout { text = "Visual Elements" };
+            elementsFoldout.Add(new PropertyField(serializedObject.FindProperty("showSockets"), "Sockets"));
+            elementsFoldout.Add(new PropertyField(serializedObject.FindProperty("showPlugs"), "Resolved Plugs"));
             elementsFoldout.Add(new PropertyField(serializedObject.FindProperty("showRing"), "Ring"));
             elementsFoldout.Add(new PropertyField(serializedObject.FindProperty("showArrow"), "Direction Arrow"));
             elementsFoldout.Add(new PropertyField(serializedObject.FindProperty("showTags"), "Tag Dots"));
             elementsFoldout.Add(new PropertyField(serializedObject.FindProperty("showChainLinks"), "Chain Links"));
             root.Add(elementsFoldout);
+
+            var appearanceFoldout = new Foldout { text = "Appearance" };
+            appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("gizmoScale"), "Gizmo Scale"));
+            appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("lineWidthPixels"), "Line Width (Pixels)"));
+            appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("depthTested"), "Depth Tested"));
+            root.Add(appearanceFoldout);
 
             // --- Colors foldout ---
             var colorsFoldout = new Foldout { text = "Colors" };
@@ -70,26 +78,16 @@ namespace org.Tayou.AmityEdits {
             }
 
             _previewObject = new GameObject("SPS Debug Overlay (Preview)");
+            _previewObject.hideFlags = HideFlags.HideAndDontSave;
             _previewObject.transform.SetParent(debug.transform, false);
             _previewObject.transform.localPosition = Vector3.zero;
             _previewObject.transform.localRotation = Quaternion.identity;
             _previewObject.transform.localScale = Vector3.one;
 
-            var mesh = new Mesh { name = "SpsDebugOverlayQuad_Preview" };
-            mesh.vertices = new Vector3[] {
-                new Vector3(-1, -1, 0),
-                new Vector3( 1, -1, 0),
-                new Vector3(-1,  1, 0),
-                new Vector3( 1,  1, 0)
-            };
-            mesh.uv = new Vector2[] {
-                new Vector2(0, 0),
-                new Vector2(1, 0),
-                new Vector2(0, 1),
-                new Vector2(1, 1)
-            };
-            mesh.triangles = new int[] { 0, 1, 2, 2, 1, 3 };
-            mesh.hideFlags = HideFlags.HideAndDontSave;
+            var mesh = SpsGridDebugRendererBuilder.CreateDispatchMesh(
+                "SpsDebugDispatchMesh_Preview",
+                HideFlags.HideAndDontSave
+            );
 
             _previewObject.AddComponent<MeshFilter>().sharedMesh = mesh;
 
@@ -103,6 +101,14 @@ namespace org.Tayou.AmityEdits {
 
         private void DestroyPreview() {
             if (_previewObject != null) {
+                var meshFilter = _previewObject.GetComponent<MeshFilter>();
+                var meshRenderer = _previewObject.GetComponent<MeshRenderer>();
+                if (meshRenderer != null && meshRenderer.sharedMaterial != null) {
+                    Object.DestroyImmediate(meshRenderer.sharedMaterial);
+                }
+                if (meshFilter != null && meshFilter.sharedMesh != null) {
+                    Object.DestroyImmediate(meshFilter.sharedMesh);
+                }
                 Object.DestroyImmediate(_previewObject);
                 _previewObject = null;
             }
@@ -119,15 +125,7 @@ namespace org.Tayou.AmityEdits {
         private void ApplyProperties(Material mat) {
             var debug = (SpsGridDebug)target;
             if (debug == null) return;
-            mat.SetFloat("_ShowRing", debug.showRing ? 1f : 0f);
-            mat.SetFloat("_ShowArrow", debug.showArrow ? 1f : 0f);
-            mat.SetFloat("_ShowTags", debug.showTags ? 1f : 0f);
-            mat.SetFloat("_ShowChain", debug.showChainLinks ? 1f : 0f);
-            mat.SetColor("_HoleColor", debug.holeColor);
-            mat.SetColor("_RingColor", debug.ringColor);
-            mat.SetColor("_ReversibleColor", debug.reversibleColor);
-            mat.SetColor("_PlugColor", debug.plugColor);
-            mat.SetColor("_ChainColor", debug.chainColor);
+            SpsGridDebugRendererBuilder.ApplyMaterialProperties(mat, debug);
         }
 
         void OnDisable() {

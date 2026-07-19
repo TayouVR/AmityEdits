@@ -1,10 +1,17 @@
 Shader "Hidden/Amity/SpsDebugOverlay" {
     Properties {
-        [Header(Visibility Toggles)]
-        [Toggle] _ShowRing("Show Ring", Float) = 1
-        [Toggle] _ShowArrow("Show Arrow", Float) = 1
-        [Toggle] _ShowTags("Show Tags", Float) = 1
+        [Header(Visibility)]
+        [Toggle] _ShowSockets("Show Sockets", Float) = 1
+        [Toggle] _ShowPlugs("Show Resolved Plugs", Float) = 0
+        [Toggle] _ShowRing("Show Rings", Float) = 1
+        [Toggle] _ShowArrow("Show Direction Arrows", Float) = 1
+        [Toggle] _ShowTags("Show Tag Markers", Float) = 1
         [Toggle] _ShowChain("Show Chain Links", Float) = 1
+
+        [Header(Appearance)]
+        _GizmoScale("Gizmo Scale", Range(0.1, 10)) = 1
+        _LineWidthPx("Line Width (Pixels)", Range(0.5, 8)) = 2
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest("Depth Test", Float) = 8
 
         [Header(Colors)]
         _HoleColor("Hole Color", Color) = (1, 0.2, 0.2, 0.9)
@@ -15,217 +22,357 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
     }
     SubShader {
         Tags {
-            "Queue" = "Transparent+1"
-            "RenderType" = "Overlay"
+            "Queue" = "Transparent+100"
+            "RenderType" = "Transparent"
             "IgnoreProjector" = "True"
+            "VRCFallback" = "Hidden"
         }
-        GrabPass { "_VFGridFinal" }
         Pass {
             Blend SrcAlpha OneMinusSrcAlpha
             Cull Off
             ZWrite Off
-            ZTest Always
+            ZTest [_ZTest]
 
             CGPROGRAM
+            #pragma target 5.0
             #pragma vertex vert
+            #pragma geometry geom
             #pragma fragment frag
+            #pragma multi_compile_instancing
+
             #include "UnityCG.cginc"
             #include "sps_cell_layout.cginc"
             #include "sps_types.cginc"
             #include "sps_utils.cginc"
-            #include "sps_id.cginc"
 
             SPS_INIT_TEX(_VFGridFinal)
 
+            float _ShowSockets;
+            float _ShowPlugs;
             float _ShowRing;
             float _ShowArrow;
             float _ShowTags;
             float _ShowChain;
+            float _GizmoScale;
+            float _LineWidthPx;
             float4 _HoleColor;
             float4 _RingColor;
             float4 _ReversibleColor;
             float4 _PlugColor;
             float4 _ChainColor;
 
+            #define SPS_DEBUG_RING_SEGMENTS 16
+            #define SPS_DEBUG_MAX_VERTICES 256
+
             struct appdata {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
-            };
-            struct v2f {
-                float4 vertex : SV_POSITION;
-                float2 uv : TEXCOORD0;
-                float4 screenPos : TEXCOORD1;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            v2f vert(appdata v) {
-                v2f o;
-                o.vertex = float4(v.vertex.xy, 0, 1);
-                o.uv = v.uv;
-                o.screenPos = ComputeScreenPos(o.vertex);
+            struct v2g {
+                float4 vertex : SV_POSITION;
+                nointerpolation uint slotIndex : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            struct g2f {
+                float4 vertex : SV_POSITION;
+                nointerpolation float4 color : COLOR0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            v2g vert(appdata v) {
+                UNITY_SETUP_INSTANCE_ID(v);
+                v2g o;
+                o.vertex = float4(0, 0, 0, 1);
+                o.slotIndex = (uint)round(v.uv.x);
+                UNITY_TRANSFER_INSTANCE_ID(v, o);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 return o;
             }
 
-            // Ring: returns 1 for pixels inside the ring outline, 0 otherwise
-            float debug_ring(float2 local, float radius, float thickness) {
-                float dist = length(local);
-                float inner = radius - thickness;
-                float outer = radius + thickness;
-                return 1.0 - smoothstep(inner, radius, dist) +
-                       smoothstep(radius, outer, dist);
+            uint sps_debug_hash_id(uint id, uint playerId) {
+                return playerId == 0u ? id : sps_hash_mix(id ^ sps_hash_mix(playerId));
             }
 
-            // Arrow: returns 1 for pixels inside the arrow shape, 0 otherwise
-            float debug_arrow(float2 local, float2 dir, float size) {
-                float len = length(local);
-                float2 norm = len > 0.001 ? local / len : float2(0, 1);
-                float cosAngle = dot(norm, dir);
-                cosAngle = clamp(cosAngle, -1, 1);
-                float angle = acos(cosAngle);
-
-                float headLen = size * 0.5;
-                float headAngle = 0.6;
-                float stemWidth = size * 0.12;
-
-                if (len > headLen) {
-                    // Arrow head (cone)
-                    return angle < headAngle ? 1 : 0;
-                }
-                // Arrow stem
-                float perpDist = abs(len * sin(angle));
-                return perpDist < stemWidth ? 1 : 0;
+            uint sps_debug_payload_uint(SpsCell cell, uint payloadIndex) {
+                return cell.read_uint(sps_cell_pixel_index_from_payload_index(payloadIndex));
             }
 
-            // Dot: returns 1 for pixels inside a filled circle
-            float debug_dot(float2 local, float2 center, float dotRadius) {
-                float dist = distance(local, center);
-                return 1.0 - smoothstep(dotRadius - 0.5, dotRadius + 0.5, dist);
+            bool sps_debug_cell_matches(
+                SpsTexture tex,
+                int slotIndex,
+                uint uniqueId,
+                uint playerId,
+                uint product
+            ) {
+                if (slotIndex < 0 || slotIndex >= sps_socket_slot_count()) return false;
+                SpsCell candidate = sps_get_cell(tex, slotIndex);
+                if (!sps_cell_check_magic(candidate)) return false;
+                if (candidate.read_uint(SPS_HEADER_VENDOR_INDEX) != SPS_VENDOR_SPS) return false;
+                if (candidate.read_uint(SPS_HEADER_PRODUCT_INDEX) != product) return false;
+                if (sps_cell_header_unique_id(candidate) != uniqueId) return false;
+                return sps_cell_header_player_id(candidate) == playerId;
             }
 
-            // Compute color from a hash value (simple hue mapping)
-            float3 debug_hash_color(uint hash) {
-                float h = (hash % 360u) / 360.0;
-                float s = 0.8;
-                float v = 0.9;
-                float3 rgb = 0;
-                float hi = floor(h * 6);
-                float f = h * 6 - hi;
-                float p = v * (1 - s);
-                float q = v * (1 - f * s);
-                float t = v * (1 - (1 - f) * s);
-                if (hi < 1) rgb = float3(v, t, p);
-                else if (hi < 2) rgb = float3(q, v, p);
-                else if (hi < 3) rgb = float3(p, v, t);
-                else if (hi < 4) rgb = float3(p, q, v);
-                else if (hi < 5) rgb = float3(t, p, v);
-                else rgb = float3(v, p, q);
-                return rgb;
-            }
-
-            fixed4 frag(v2f i) : SV_Target {
-                // Compute pixel position in screen space
-                float2 pixel = i.uv * _ScreenParams.xy;
-                // Flip Y for Unity screen coord convention
-                pixel.y = _ScreenParams.y - pixel.y;
-
-                // Compute cell grid position
-                int2 cellCoord = floor(pixel / SPS_CELL_WIDTH);
-                int columns = sps_cell_grid_columns();
-                int screenIndex = cellCoord.y * columns + cellCoord.x;
-
-                if (screenIndex <= 0) clip(-1);
-
-                // Read cell from grid
-                SpsTexture gridTex = SPS_GET_TEX(_VFGridFinal);
-                int2 origin = cellCoord * SPS_CELL_WIDTH;
-                SpsCell cell = sps_get_cell_raw(gridTex, uint2(origin));
-                if (!sps_cell_check_magic(cell)) clip(-1);
-
-                // Read product type
+            bool sps_debug_is_primary_replica(SpsTexture tex, uint slotIndex, SpsCell cell) {
+                uint uniqueId = sps_cell_header_unique_id(cell);
+                uint playerId = sps_cell_header_player_id(cell);
                 uint product = cell.read_uint(SPS_HEADER_PRODUCT_INDEX);
-                if (product == 0u) clip(-1);
+                uint seed = sps_debug_hash_id(uniqueId, playerId);
 
-                // Local position within cell, centered
-                float2 cellCenter = float2(SPS_CELL_WIDTH, SPS_CELL_HEIGHT) * 0.5;
-                float2 local = pixel - (float2)origin - cellCenter;
+                [unroll]
+                for (uint replica = 0u; replica < SPS_CELL_REPLICA_COUNT; replica++) {
+                    int candidateIndex = (int)sps_hashed_screen_slot_index_from_id(seed, replica);
+                    if (!sps_debug_cell_matches(tex, candidateIndex, uniqueId, playerId, product)) continue;
+                    return candidateIndex == (int)slotIndex;
+                }
+                return false;
+            }
 
-                // Read cell data
-                uint flags = 0;
-                uint nextId = 0;
-                float3 worldPos = sps_cell_header_world(cell);
-                float3 forward = sps_cell_header_forward(cell);
-                float3 up = sps_cell_header_up(cell);
-                float scale = sps_cell_header_scale(cell);
+            bool sps_debug_find_socket(
+                SpsTexture tex,
+                uint uniqueId,
+                uint playerId,
+                out float3 worldPosition
+            ) {
+                uint seed = sps_debug_hash_id(uniqueId, playerId);
+                [unroll]
+                for (uint replica = 0u; replica < SPS_CELL_REPLICA_COUNT; replica++) {
+                    int candidateIndex = (int)sps_hashed_screen_slot_index_from_id(seed, replica);
+                    if (!sps_debug_cell_matches(
+                        tex,
+                        candidateIndex,
+                        uniqueId,
+                        playerId,
+                        SPS_PRODUCT_SOCKET
+                    )) continue;
+                    worldPosition = sps_cell_header_world(sps_get_cell(tex, candidateIndex));
+                    return true;
+                }
+                worldPosition = 0;
+                return false;
+            }
 
-                // Determine socket role from payload
-                bool isSocket = (product == SPS_PRODUCT_SOCKET);
-                bool isPlug = (product == SPS_PRODUCT_PLUG);
-                if (isSocket) {
-                    flags = cell.read_uint(SPS_SOCKET_PAYLOAD_FLAGS);
-                    nextId = cell.read_uint(SPS_SOCKET_PAYLOAD_NEXT_ID);
+            float3 sps_debug_hash_color(uint hash) {
+                float h = (hash % 360u) / 360.0;
+                float3 p = abs(frac(h + float3(0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+                return lerp(float3(1, 1, 1), saturate(p - 1.0), 0.8) * 0.9;
+            }
+
+            void sps_debug_append_vertex(
+                float4 clipPosition,
+                float4 color,
+                v2g source,
+                inout TriangleStream<g2f> stream
+            ) {
+                g2f o;
+                o.vertex = clipPosition;
+                o.color = color;
+                UNITY_TRANSFER_INSTANCE_ID(source, o);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+                stream.Append(o);
+            }
+
+            void sps_debug_emit_line(
+                float3 worldA,
+                float3 worldB,
+                float widthPx,
+                float4 color,
+                v2g source,
+                inout TriangleStream<g2f> stream
+            ) {
+                float4 clipA = UnityWorldToClipPos(worldA);
+                float4 clipB = UnityWorldToClipPos(worldB);
+                if (clipA.w <= 0.0001 || clipB.w <= 0.0001) return;
+
+                float2 pixelA = (clipA.xy / clipA.w * 0.5 + 0.5) * _ScreenParams.xy;
+                float2 pixelB = (clipB.xy / clipB.w * 0.5 + 0.5) * _ScreenParams.xy;
+                float2 pixelDelta = pixelB - pixelA;
+                float pixelLength = length(pixelDelta);
+                if (pixelLength <= 0.001) return;
+
+                float2 perpendicular = float2(-pixelDelta.y, pixelDelta.x) / pixelLength;
+                float2 offsetNdc = perpendicular * (widthPx * 0.5) / _ScreenParams.xy * 2.0;
+
+                float4 aPlus = clipA;
+                float4 aMinus = clipA;
+                float4 bPlus = clipB;
+                float4 bMinus = clipB;
+                aPlus.xy += offsetNdc * clipA.w;
+                aMinus.xy -= offsetNdc * clipA.w;
+                bPlus.xy += offsetNdc * clipB.w;
+                bMinus.xy -= offsetNdc * clipB.w;
+
+                sps_debug_append_vertex(aPlus, color, source, stream);
+                sps_debug_append_vertex(aMinus, color, source, stream);
+                sps_debug_append_vertex(bPlus, color, source, stream);
+                sps_debug_append_vertex(bMinus, color, source, stream);
+                stream.RestartStrip();
+            }
+
+            void sps_debug_emit_ring(
+                float3 center,
+                float3 right,
+                float3 up,
+                float radius,
+                float4 color,
+                v2g source,
+                inout TriangleStream<g2f> stream
+            ) {
+                [unroll]
+                for (int segment = 0; segment < SPS_DEBUG_RING_SEGMENTS; segment++) {
+                    float angleA = 6.2831853 * segment / SPS_DEBUG_RING_SEGMENTS;
+                    float angleB = 6.2831853 * (segment + 1) / SPS_DEBUG_RING_SEGMENTS;
+                    float3 pointA = center + (right * cos(angleA) + up * sin(angleA)) * radius;
+                    float3 pointB = center + (right * cos(angleB) + up * sin(angleB)) * radius;
+                    sps_debug_emit_line(pointA, pointB, _LineWidthPx, color, source, stream);
+                }
+            }
+
+            void sps_debug_emit_arrow(
+                float3 start,
+                float3 end,
+                float3 right,
+                float3 up,
+                float4 color,
+                v2g source,
+                inout TriangleStream<g2f> stream
+            ) {
+                float3 direction = sps_normalize(end - start);
+                float lengthWorld = max(length(end - start), 0.001);
+                float headLength = min(lengthWorld * 0.35, 0.02 * _GizmoScale);
+                float headWidth = headLength * 0.6;
+                float3 headBase = end - direction * headLength;
+
+                sps_debug_emit_line(start, end, _LineWidthPx, color, source, stream);
+                sps_debug_emit_line(end, headBase + right * headWidth, _LineWidthPx, color, source, stream);
+                sps_debug_emit_line(end, headBase - right * headWidth, _LineWidthPx, color, source, stream);
+                sps_debug_emit_line(end, headBase + up * headWidth, _LineWidthPx, color, source, stream);
+                sps_debug_emit_line(end, headBase - up * headWidth, _LineWidthPx, color, source, stream);
+            }
+
+            void sps_debug_emit_tag_markers(
+                SpsCell cell,
+                float3 center,
+                float3 right,
+                float3 up,
+                v2g source,
+                inout TriangleStream<g2f> stream
+            ) {
+                [unroll]
+                for (uint tagIndex = 0u; tagIndex < SPS_SOCKET_PAYLOAD_TAG_COUNT; tagIndex++) {
+                    uint tagHash = sps_debug_payload_uint(cell, SPS_SOCKET_PAYLOAD_TAG_START + tagIndex);
+                    if (tagHash == 0u) continue;
+                    float angle = 6.2831853 * tagIndex / SPS_SOCKET_PAYLOAD_TAG_COUNT;
+                    float3 radial = right * cos(angle) + up * sin(angle);
+                    float3 markerStart = center + radial * (0.044 * _GizmoScale);
+                    float3 markerEnd = center + radial * (0.056 * _GizmoScale);
+                    float4 tagColor = float4(sps_debug_hash_color(tagHash), 0.95);
+                    sps_debug_emit_line(markerStart, markerEnd, _LineWidthPx * 2.0, tagColor, source, stream);
+                }
+            }
+
+            [maxvertexcount(SPS_DEBUG_MAX_VERTICES)]
+            void geom(point v2g input[1], inout TriangleStream<g2f> stream) {
+                UNITY_SETUP_INSTANCE_ID(input[0]);
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input[0]);
+
+                SpsTexture tex = SPS_GET_TEX(_VFGridFinal);
+                uint slotIndex = input[0].slotIndex;
+                if (slotIndex >= (uint)sps_socket_slot_count()) return;
+
+                SpsCell cell = sps_get_cell(tex, (int)slotIndex);
+                if (!sps_cell_check_magic(cell)) return;
+                if (cell.read_uint(SPS_HEADER_VENDOR_INDEX) != SPS_VENDOR_SPS) return;
+
+                uint product = cell.read_uint(SPS_HEADER_PRODUCT_INDEX);
+                bool isSocket = product == SPS_PRODUCT_SOCKET;
+                bool isPlug = product == SPS_PRODUCT_PLUG;
+                if ((!isSocket || !sps_to_bool(_ShowSockets)) && (!isPlug || !sps_to_bool(_ShowPlugs))) return;
+                if (!sps_debug_is_primary_replica(tex, slotIndex, cell)) return;
+
+                float3 center = sps_cell_header_world(cell);
+                float3 forward = sps_normalize(sps_cell_header_forward(cell));
+                float3 sourceUp = sps_normalize(sps_cell_header_up(cell));
+                float3 right = sps_normalize(cross(sourceUp, forward));
+                float3 up = sps_normalize(cross(forward, right));
+
+                if (isPlug) {
+                    if (sps_to_bool(_ShowRing)) {
+                        float axisSize = 0.035 * _GizmoScale;
+                        sps_debug_emit_line(center - right * axisSize, center + right * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
+                        sps_debug_emit_line(center - up * axisSize, center + up * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
+                        sps_debug_emit_line(center - forward * axisSize, center + forward * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
+                    }
+                    return;
                 }
 
-                // Compute ring color from role
-                float4 ringColor = _PlugColor;
-                if (isSocket) {
-                    bool hole = (flags & SPS_SOCKET_FLAG_HOLE) != 0;
-                    bool doubleSided = (flags & SPS_SOCKET_FLAG_DOUBLE_SIDED) != 0;
-                    if (hole && doubleSided) ringColor = _RingColor;
-                    else if (hole) ringColor = _HoleColor;
-                    else if (doubleSided) ringColor = _ReversibleColor;
-                    else ringColor = float4(1, 1, 1, 0.9);
-                }
+                uint flags = sps_debug_payload_uint(cell, SPS_SOCKET_PAYLOAD_FLAGS);
+                bool hole = (flags & SPS_SOCKET_FLAG_HOLE) != 0u;
+                bool doubleSided = (flags & SPS_SOCKET_FLAG_DOUBLE_SIDED) != 0u;
+                float4 roleColor = float4(1, 1, 1, 0.9);
+                if (hole && doubleSided) roleColor = _RingColor;
+                else if (hole) roleColor = _HoleColor;
+                else if (doubleSided) roleColor = _ReversibleColor;
 
-                // Project forward to screen-space 2D direction
-                float3 viewForward = mul((float3x3)UNITY_MATRIX_V, normalize(forward));
-                float2 screenDir = normalize(viewForward.xy);
-
-                // Ring radius based on scale
-                float ringRadius = min(scale * 0.5, SPS_CELL_WIDTH * 0.35);
-                float ringThickness = max(1.0, ringRadius * 0.15);
-
-                float4 result = 0;
-
-                // Draw ring
                 if (sps_to_bool(_ShowRing)) {
-                    float ringAlpha = debug_ring(local, ringRadius, ringThickness);
-                    result = lerp(result, ringColor, ringAlpha * ringColor.a);
+                    sps_debug_emit_ring(center, right, up, 0.02 * _GizmoScale, roleColor, input[0], stream);
+                    sps_debug_emit_ring(center, right, up, 0.04 * _GizmoScale, roleColor, input[0], stream);
                 }
 
-                // Draw direction arrow
-                if (sps_to_bool(_ShowArrow) && isSocket) {
-                    float arrowSize = ringRadius * 1.2;
-                    float arrowAlpha = debug_arrow(local, screenDir, arrowSize);
-                    result = lerp(result, ringColor * 1.5, arrowAlpha * 0.8);
-                }
-
-                // Draw tag dots
-                if (sps_to_bool(_ShowTags) && isSocket) {
-                    float dotRadius = max(1.5, ringRadius * 0.12);
-                    int tagCount = min(SPS_SOCKET_PAYLOAD_TAG_COUNT, 8);
-                    [unroll]
-                    for (int ti = 0; ti < tagCount; ti++) {
-                        uint tagHash = cell.read_uint(SPS_SOCKET_PAYLOAD_TAG_START + ti);
-                        if (tagHash == 0u) continue;
-
-                        float angle = (float)ti / tagCount * 6.28318;
-                        float2 dotPos = float2(cos(angle), sin(angle)) * (ringRadius + dotRadius + 2);
-                        float dotAlpha = debug_dot(local, dotPos, dotRadius);
-                        float3 dotColor = debug_hash_color(tagHash);
-                        result = lerp(result, float4(dotColor, 0.9), dotAlpha * 0.85);
+                if (sps_to_bool(_ShowArrow)) {
+                    if (hole && doubleSided) {
+                        sps_debug_emit_arrow(center, center - forward * 0.05 * _GizmoScale, right, up, roleColor, input[0], stream);
+                        sps_debug_emit_arrow(center, center + forward * 0.05 * _GizmoScale, right, up, roleColor, input[0], stream);
+                    } else if (doubleSided) {
+                        sps_debug_emit_arrow(
+                            center + forward * 0.05 * _GizmoScale,
+                            center - forward * 0.05 * _GizmoScale,
+                            right,
+                            up,
+                            roleColor,
+                            input[0],
+                            stream
+                        );
+                    } else {
+                        sps_debug_emit_arrow(
+                            center + forward * 0.1 * _GizmoScale,
+                            center,
+                            right,
+                            up,
+                            roleColor,
+                            input[0],
+                            stream
+                        );
                     }
                 }
 
-                // Draw chain indicator
-                if (sps_to_bool(_ShowChain) && isSocket && nextId != 0u) {
-                    float chainSize = ringRadius * 0.5;
-                    float2 chainDir = float2(1, 0);
-                    float chainAlpha = debug_arrow(local - float2(cellCenter.x * 0.35, 0), chainDir, chainSize);
-                    result = lerp(result, _ChainColor, chainAlpha * _ChainColor.a);
+                if (sps_to_bool(_ShowTags)) {
+                    sps_debug_emit_tag_markers(cell, center, right, up, input[0], stream);
                 }
 
-                // Ensure at least minimal alpha for readability
-                if (result.a < 0.01) clip(-1);
-                return result;
+                if (sps_to_bool(_ShowChain)) {
+                    uint nextId = sps_debug_payload_uint(cell, SPS_SOCKET_PAYLOAD_NEXT_ID);
+                    float3 targetPosition;
+                    if (nextId != 0u && sps_debug_find_socket(
+                        tex,
+                        nextId,
+                        sps_cell_header_player_id(cell),
+                        targetPosition
+                    )) {
+                        sps_debug_emit_line(center, targetPosition, _LineWidthPx, _ChainColor, input[0], stream);
+                    }
+                }
+            }
+
+            fixed4 frag(g2f i) : SV_Target {
+                UNITY_SETUP_INSTANCE_ID(i);
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+                return i.color;
             }
             ENDCG
         }
