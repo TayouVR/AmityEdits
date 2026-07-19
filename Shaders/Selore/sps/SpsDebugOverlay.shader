@@ -62,7 +62,13 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             float4 _ChainColor;
 
             #define SPS_DEBUG_RING_SEGMENTS 16
-            #define SPS_DEBUG_MAX_VERTICES 256
+            // Each gizmo is split across 4 geometry shader invocations (one
+            // dispatch point per part) so every invocation stays within the
+            // D3D11 limit of 1024 scalar output components.
+            // Part 0: inner ring, Part 1: outer ring,
+            // Part 2: arrows / plug axes, Part 3: tag markers + chain link.
+            #define SPS_DEBUG_PART_COUNT 4
+            #define SPS_DEBUG_MAX_VERTICES 64
 
             struct appdata {
                 float4 vertex : POSITION;
@@ -73,6 +79,7 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             struct v2g {
                 float4 vertex : SV_POSITION;
                 nointerpolation uint slotIndex : TEXCOORD0;
+                nointerpolation uint partIndex : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -86,9 +93,10 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
 
             v2g vert(appdata v) {
                 UNITY_SETUP_INSTANCE_ID(v);
-                v2g o;
+                v2g o = (v2g)0;
                 o.vertex = float4(0, 0, 0, 1);
                 o.slotIndex = (uint)round(v.uv.x);
+                o.partIndex = (uint)round(v.uv.y);
                 UNITY_TRANSFER_INSTANCE_ID(v, o);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 return o;
@@ -123,14 +131,18 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 uint playerId = sps_cell_header_player_id(cell);
                 uint product = cell.read_uint(SPS_HEADER_PRODUCT_INDEX);
                 uint seed = sps_debug_hash_id(uniqueId, playerId);
+                bool isPrimary = false;
+                bool found = false;
 
                 [unroll]
                 for (uint replica = 0u; replica < SPS_CELL_REPLICA_COUNT; replica++) {
+                    if (found) continue;
                     int candidateIndex = (int)sps_hashed_screen_slot_index_from_id(seed, replica);
                     if (!sps_debug_cell_matches(tex, candidateIndex, uniqueId, playerId, product)) continue;
-                    return candidateIndex == (int)slotIndex;
+                    isPrimary = candidateIndex == (int)slotIndex;
+                    found = true;
                 }
-                return false;
+                return isPrimary;
             }
 
             bool sps_debug_find_socket(
@@ -139,9 +151,13 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 uint playerId,
                 out float3 worldPosition
             ) {
+                worldPosition = float3(0, 0, 0);
                 uint seed = sps_debug_hash_id(uniqueId, playerId);
+                bool found = false;
+
                 [unroll]
                 for (uint replica = 0u; replica < SPS_CELL_REPLICA_COUNT; replica++) {
+                    if (found) continue;
                     int candidateIndex = (int)sps_hashed_screen_slot_index_from_id(seed, replica);
                     if (!sps_debug_cell_matches(
                         tex,
@@ -151,10 +167,9 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                         SPS_PRODUCT_SOCKET
                     )) continue;
                     worldPosition = sps_cell_header_world(sps_get_cell(tex, candidateIndex));
-                    return true;
+                    found = true;
                 }
-                worldPosition = 0;
-                return false;
+                return found;
             }
 
             float3 sps_debug_hash_color(uint hash) {
@@ -169,7 +184,7 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 v2g source,
                 inout TriangleStream<g2f> stream
             ) {
-                g2f o;
+                g2f o = (g2f)0;
                 o.vertex = clipPosition;
                 o.color = color;
                 UNITY_TRANSFER_INSTANCE_ID(source, o);
@@ -187,31 +202,33 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             ) {
                 float4 clipA = UnityWorldToClipPos(worldA);
                 float4 clipB = UnityWorldToClipPos(worldB);
-                if (clipA.w <= 0.0001 || clipB.w <= 0.0001) return;
 
-                float2 pixelA = (clipA.xy / clipA.w * 0.5 + 0.5) * _ScreenParams.xy;
-                float2 pixelB = (clipB.xy / clipB.w * 0.5 + 0.5) * _ScreenParams.xy;
-                float2 pixelDelta = pixelB - pixelA;
-                float pixelLength = length(pixelDelta);
-                if (pixelLength <= 0.001) return;
+                if (clipA.w > 0.0001 && clipB.w > 0.0001) {
+                    float2 pixelA = (clipA.xy / clipA.w * 0.5 + 0.5) * _ScreenParams.xy;
+                    float2 pixelB = (clipB.xy / clipB.w * 0.5 + 0.5) * _ScreenParams.xy;
+                    float2 pixelDelta = pixelB - pixelA;
+                    float pixelLength = length(pixelDelta);
 
-                float2 perpendicular = float2(-pixelDelta.y, pixelDelta.x) / pixelLength;
-                float2 offsetNdc = perpendicular * (widthPx * 0.5) / _ScreenParams.xy * 2.0;
+                    if (pixelLength > 0.001) {
+                        float2 perpendicular = float2(-pixelDelta.y, pixelDelta.x) / pixelLength;
+                        float2 offsetNdc = perpendicular * (widthPx * 0.5) / _ScreenParams.xy * 2.0;
 
-                float4 aPlus = clipA;
-                float4 aMinus = clipA;
-                float4 bPlus = clipB;
-                float4 bMinus = clipB;
-                aPlus.xy += offsetNdc * clipA.w;
-                aMinus.xy -= offsetNdc * clipA.w;
-                bPlus.xy += offsetNdc * clipB.w;
-                bMinus.xy -= offsetNdc * clipB.w;
+                        float4 aPlus = clipA;
+                        float4 aMinus = clipA;
+                        float4 bPlus = clipB;
+                        float4 bMinus = clipB;
+                        aPlus.xy += offsetNdc * clipA.w;
+                        aMinus.xy -= offsetNdc * clipA.w;
+                        bPlus.xy += offsetNdc * clipB.w;
+                        bMinus.xy -= offsetNdc * clipB.w;
 
-                sps_debug_append_vertex(aPlus, color, source, stream);
-                sps_debug_append_vertex(aMinus, color, source, stream);
-                sps_debug_append_vertex(bPlus, color, source, stream);
-                sps_debug_append_vertex(bMinus, color, source, stream);
-                stream.RestartStrip();
+                        sps_debug_append_vertex(aPlus, color, source, stream);
+                        sps_debug_append_vertex(aMinus, color, source, stream);
+                        sps_debug_append_vertex(bPlus, color, source, stream);
+                        sps_debug_append_vertex(bMinus, color, source, stream);
+                        stream.RestartStrip();
+                    }
+                }
             }
 
             void sps_debug_emit_ring(
@@ -283,6 +300,7 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
 
                 SpsTexture tex = SPS_GET_TEX(_VFGridFinal);
                 uint slotIndex = input[0].slotIndex;
+                uint partIndex = input[0].partIndex;
                 if (slotIndex >= (uint)sps_socket_slot_count()) return;
 
                 SpsCell cell = sps_get_cell(tex, (int)slotIndex);
@@ -302,7 +320,8 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 float3 up = sps_normalize(cross(forward, right));
 
                 if (isPlug) {
-                    if (sps_to_bool(_ShowRing)) {
+                    // Plugs draw a 3-axis cross on the arrows part only.
+                    if (partIndex == 2u && sps_to_bool(_ShowRing)) {
                         float axisSize = 0.035 * _GizmoScale;
                         sps_debug_emit_line(center - right * axisSize, center + right * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
                         sps_debug_emit_line(center - up * axisSize, center + up * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
@@ -319,52 +338,57 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 else if (hole) roleColor = _HoleColor;
                 else if (doubleSided) roleColor = _ReversibleColor;
 
-                if (sps_to_bool(_ShowRing)) {
-                    sps_debug_emit_ring(center, right, up, 0.02 * _GizmoScale, roleColor, input[0], stream);
-                    sps_debug_emit_ring(center, right, up, 0.04 * _GizmoScale, roleColor, input[0], stream);
-                }
-
-                if (sps_to_bool(_ShowArrow)) {
-                    if (hole && doubleSided) {
-                        sps_debug_emit_arrow(center, center - forward * 0.05 * _GizmoScale, right, up, roleColor, input[0], stream);
-                        sps_debug_emit_arrow(center, center + forward * 0.05 * _GizmoScale, right, up, roleColor, input[0], stream);
-                    } else if (doubleSided) {
-                        sps_debug_emit_arrow(
-                            center + forward * 0.05 * _GizmoScale,
-                            center - forward * 0.05 * _GizmoScale,
-                            right,
-                            up,
-                            roleColor,
-                            input[0],
-                            stream
-                        );
-                    } else {
-                        sps_debug_emit_arrow(
-                            center + forward * 0.1 * _GizmoScale,
-                            center,
-                            right,
-                            up,
-                            roleColor,
-                            input[0],
-                            stream
-                        );
+                if (partIndex == 0u) {
+                    if (sps_to_bool(_ShowRing)) {
+                        sps_debug_emit_ring(center, right, up, 0.02 * _GizmoScale, roleColor, input[0], stream);
                     }
-                }
+                } else if (partIndex == 1u) {
+                    if (sps_to_bool(_ShowRing)) {
+                        sps_debug_emit_ring(center, right, up, 0.04 * _GizmoScale, roleColor, input[0], stream);
+                    }
+                } else if (partIndex == 2u) {
+                    if (sps_to_bool(_ShowArrow)) {
+                        if (hole && doubleSided) {
+                            sps_debug_emit_arrow(center, center - forward * 0.05 * _GizmoScale, right, up, roleColor, input[0], stream);
+                            sps_debug_emit_arrow(center, center + forward * 0.05 * _GizmoScale, right, up, roleColor, input[0], stream);
+                        } else if (doubleSided) {
+                            sps_debug_emit_arrow(
+                                center + forward * 0.05 * _GizmoScale,
+                                center - forward * 0.05 * _GizmoScale,
+                                right,
+                                up,
+                                roleColor,
+                                input[0],
+                                stream
+                            );
+                        } else {
+                            sps_debug_emit_arrow(
+                                center + forward * 0.1 * _GizmoScale,
+                                center,
+                                right,
+                                up,
+                                roleColor,
+                                input[0],
+                                stream
+                            );
+                        }
+                    }
+                } else {
+                    if (sps_to_bool(_ShowTags)) {
+                        sps_debug_emit_tag_markers(cell, center, right, up, input[0], stream);
+                    }
 
-                if (sps_to_bool(_ShowTags)) {
-                    sps_debug_emit_tag_markers(cell, center, right, up, input[0], stream);
-                }
-
-                if (sps_to_bool(_ShowChain)) {
-                    uint nextId = sps_debug_payload_uint(cell, SPS_SOCKET_PAYLOAD_NEXT_ID);
-                    float3 targetPosition;
-                    if (nextId != 0u && sps_debug_find_socket(
-                        tex,
-                        nextId,
-                        sps_cell_header_player_id(cell),
-                        targetPosition
-                    )) {
-                        sps_debug_emit_line(center, targetPosition, _LineWidthPx, _ChainColor, input[0], stream);
+                    if (sps_to_bool(_ShowChain)) {
+                        uint nextId = sps_debug_payload_uint(cell, SPS_SOCKET_PAYLOAD_NEXT_ID);
+                        float3 targetPosition = float3(0, 0, 0);
+                        if (nextId != 0u && sps_debug_find_socket(
+                            tex,
+                            nextId,
+                            sps_cell_header_player_id(cell),
+                            targetPosition
+                        )) {
+                            sps_debug_emit_line(center, targetPosition, _LineWidthPx, _ChainColor, input[0], stream);
+                        }
                     }
                 }
             }
