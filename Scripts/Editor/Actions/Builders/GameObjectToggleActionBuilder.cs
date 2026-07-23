@@ -44,8 +44,8 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             var ctrl = aac.NewAnimatorController();
             var layer = ctrl.NewLayer();
             
-            var onClip = aac.NewClip($"on_{paramName}").Toggling(a.target, true);
-            var offClip = aac.NewClip($"off_{paramName}").Toggling(a.target, false);
+            var onClip = aac.NewClip($"on_{paramName}").Toggling(a.target, a.active);
+            var offClip = aac.NewClip($"off_{paramName}").Toggling(a.target, !a.active);
             
             Debug.LogWarning($"GameObjectToggleActionBuilder: Building GameObject toggle action: {a.target.name}");
             Debug.LogWarning($"GameObjectToggleActionBuilder: Parameter name: {paramName}");
