@@ -41,6 +41,8 @@ namespace org.Tayou.AmityEdits {
             material.SetFloat("_ShowChain", debug.showChainLinks ? 1f : 0f);
             material.SetFloat("_GizmoScale", debug.gizmoScale);
             material.SetFloat("_LineWidthPx", debug.lineWidthPixels);
+            material.SetFloat("_Radius", debug.radius);
+            material.SetFloat("_FadeWidth", debug.fadeWidth);
             material.SetFloat(
                 "_ZTest",
                 (float)(debug.depthTested ? CompareFunction.LessEqual : CompareFunction.Always)

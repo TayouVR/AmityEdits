@@ -12,6 +12,8 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
         _GizmoScale("Gizmo Scale", Range(0.1, 10)) = 1
         _LineWidthPx("Line Width (Pixels)", Range(0.5, 8)) = 2
         [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest("Depth Test", Float) = 8
+        _Radius("Radius", Range(0, 50)) = 5
+        _FadeWidth("Fade Width", Range(0.01, 10)) = 0.3
 
         [Header(Colors)]
         _HoleColor("Hole Color", Color) = (1, 0.2, 0.2, 0.9)
@@ -55,11 +57,15 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             float _ShowChain;
             float _GizmoScale;
             float _LineWidthPx;
+            float _Radius;
+            float _FadeWidth;
             float4 _HoleColor;
             float4 _RingColor;
             float4 _ReversibleColor;
             float4 _PlugColor;
             float4 _ChainColor;
+            
+            static float g_radiusFade = 1.0;
 
             #define SPS_DEBUG_RING_SEGMENTS 16
             // Each gizmo is split across 4 geometry shader invocations (one
@@ -187,6 +193,7 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 g2f o = (g2f)0;
                 o.vertex = clipPosition;
                 o.color = color;
+                o.color.a *= g_radiusFade;
                 UNITY_TRANSFER_INSTANCE_ID(source, o);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 stream.Append(o);
@@ -318,6 +325,14 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 float3 sourceUp = sps_normalize(sps_cell_header_up(cell));
                 float3 right = sps_normalize(cross(sourceUp, forward));
                 float3 up = sps_normalize(cross(forward, right));
+
+                // remove gizmos when out of range
+                float3 objectWorldPos = unity_ObjectToWorld._m03_m13_m23;
+                float distToObject = distance(center, objectWorldPos);
+                g_radiusFade = (_Radius == 0.0) 
+                    ? 1.0 
+                    : smoothstep(0, max(_FadeWidth, 0.0001), _Radius - distToObject);
+                if (g_radiusFade <= 0.0) return;   // fully outside radius, skip whole gizmo
 
                 if (isPlug) {
                     // Plugs draw a 3-axis cross on the arrows part only.

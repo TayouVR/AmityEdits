@@ -31,6 +31,8 @@ namespace org.Tayou.AmityEdits {
             appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("gizmoScale"), "Gizmo Scale"));
             appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("lineWidthPixels"), "Line Width (Pixels)"));
             appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("depthTested"), "Depth Tested"));
+            appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("radius"), "Radius (meter)"));
+            appearanceFoldout.Add(new PropertyField(serializedObject.FindProperty("fadeWidth"), "Fade Width (Inside, meter)"));
             root.Add(appearanceFoldout);
 
             // --- Colors foldout ---

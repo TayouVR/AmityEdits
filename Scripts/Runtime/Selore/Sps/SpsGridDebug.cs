@@ -19,6 +19,8 @@ namespace org.Tayou.AmityEdits {
         [Range(0.5f, 8f)]
         public float lineWidthPixels = 2f;
         public bool depthTested;
+        public float radius = 5f;
+        public float fadeWidth = 0.3f;
 
         [Header("Colors")]
         public Color holeColor = new Color(1f, 0.2f, 0.2f, 0.9f);
