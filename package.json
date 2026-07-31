@@ -14,6 +14,7 @@
   "dependencies": {
     "nadena.dev.ndmf": "1.2.2",
     "dev.hai-vr.animator-as-code.v1": "1.2.0",
-    "dev.hai-vr.animator-as-code.v1.modular-avatar": "1.1.2"
+    "dev.hai-vr.animator-as-code.v1.modular-avatar": "1.1.2",
+    "dev.hai-vr.animator-as-code.v1.vrchat": "1.1.2"
   }
 }
