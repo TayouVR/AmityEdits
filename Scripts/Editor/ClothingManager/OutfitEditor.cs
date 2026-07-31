@@ -22,7 +22,7 @@ using UnityEngine.UIElements;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(Outfit))]
-    public class OutfitEditor : AmityBaseEditor {
+    public class OutfitEditor : AmityBaseEditor<Outfit> {
         public override VisualElement CreateInspector() {
             VisualElement root = new VisualElement();
 

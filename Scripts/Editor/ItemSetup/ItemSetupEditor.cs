@@ -24,8 +24,7 @@ using UnityEngine.UIElements;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(ItemSetup), true)]
-    public class ItemSetupEditor : AmityBaseEditor {
-        private ItemSetup _itemSetup;
+    public class ItemSetupEditor : AmityBaseEditor<ItemSetup> {
 
         /*private void OnSceneGUI() {
             for (var i = 0; i < _itemSetup.targets.Count; i++) {
@@ -38,7 +37,7 @@ namespace org.Tayou.AmityEdits {
                     var rotationOffset =
                         Handles.DoRotationHandle(Quaternion.Euler(itemTarget.RotationOffset), itemTarget.PositionOffset + position1).eulerAngles;
                     if (EditorGUI.EndChangeCheck()) {
-                        Undo.RecordObject(target, "Altered offsets");
+                        Undo.RecordObject(Target, "Altered offsets");
                         itemTarget.PositionOffset = positionOffset;
                         itemTarget.RotationOffset = rotationOffset;
                     }
@@ -65,18 +64,17 @@ namespace org.Tayou.AmityEdits {
         /// Saves the current Transform (position & rotation) to the corresponding fields based on the preview index (-1 for rest state)
         /// </summary>
         private void SaveCurrentTransformToOffsets() {
-            Transform itemSetupTrans = _itemSetup.transform;
-            if (_itemSetup.itemPreviewIndex == -1) {
-                _itemSetup.restPosition = itemSetupTrans.position;
-                _itemSetup.restRotation = itemSetupTrans.rotation;
+            Transform itemSetupTrans = Target.transform;
+            if (Target.itemPreviewIndex == -1) {
+                Target.restPosition = itemSetupTrans.position;
+                Target.restRotation = itemSetupTrans.rotation;
             } else {
-                _itemSetup.targets[_itemSetup.itemPreviewIndex].position = itemSetupTrans.position;
-                _itemSetup.targets[_itemSetup.itemPreviewIndex].rotation = itemSetupTrans.rotation;
+                Target.targets[Target.itemPreviewIndex].position = itemSetupTrans.position;
+                Target.targets[Target.itemPreviewIndex].rotation = itemSetupTrans.rotation;
             }
         }
         
         private void OnEnable() {
-            _itemSetup = (ItemSetup) target;
             //EditorApplication.update += Update; // handle any continuous updates
         }
 
@@ -127,7 +125,7 @@ namespace org.Tayou.AmityEdits {
             itemRoot.Q<PropertyField>("rotationOffset").BindProperty(targetsObj.FindProperty("rotation"));
 
             var previewButton = itemRoot.Q<Button>("previewButton");
-            previewButton.text = _itemSetup.itemPreviewIndex == index ? "Preview" : "Stop Preview";
+            previewButton.text = Target.itemPreviewIndex == index ? "Preview" : "Stop Preview";
 
             previewButton.clicked -= null;
             previewButton.clicked += () => PreviewButtonOnClicked(index);
@@ -135,20 +133,20 @@ namespace org.Tayou.AmityEdits {
         }
 
         private void PreviewButtonOnClicked(int index) {
-            if (_itemSetup.itemPreviewIndex == index) {
+            if (Target.itemPreviewIndex == index) {
                 SaveCurrentTransformToOffsets();
                 //EditorUtility.SetDirty(_itemSetup);
-                _itemSetup.itemPreviewIndex = -1;
-                //Undo.RecordObject(target, $"Took Item Target #{index} out of Preview mode");
-                _itemSetup.gameObject.SetActive(_itemSetup.itemDefaultActiveState);
+                Target.itemPreviewIndex = -1;
+                //Undo.RecordObject(Target, $"Took Item Target #{index} out of Preview mode");
+                Target.gameObject.SetActive(Target.itemDefaultActiveState);
             } else {
                 //EditorUtility.SetDirty(_itemSetup);
-                _itemSetup.itemPreviewIndex = index;
-                //Undo.RecordObject(target, $"Set Item Target #{index} in Preview mode");
+                Target.itemPreviewIndex = index;
+                //Undo.RecordObject(Target, $"Set Item Target #{index} in Preview mode");
                 //_itemSetup.transform.position = itemSetupTarget.transform.position + itemSetupTarget.position;
                     
                 //_itemSetup.transform.rotation = itemSetupTarget.transform.rotation * itemSetupTarget.rotation;
-                _itemSetup.gameObject.SetActive(true);
+                Target.gameObject.SetActive(true);
             }
         }
 

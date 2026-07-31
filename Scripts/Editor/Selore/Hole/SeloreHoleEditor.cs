@@ -42,8 +42,7 @@ using TreeView = UnityEngine.UIElements.TreeView;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(SeloreHole), true)]
-    public class SeloreHoleEditor : AmityBaseEditor {
-        private SeloreHole _targetComponent;
+    public class SeloreHoleEditor : AmityBaseEditor<SeloreHole> {
 
         private void DrawHeaderCallback(Rect rect) {
             EditorGUI.LabelField(rect, "Targets");
@@ -124,13 +123,11 @@ namespace org.Tayou.AmityEdits {
         }
 
         private void OnEnable() {
-            _targetComponent = (SeloreHole)target;
             //EditorApplication.update += Update; // handle any continuous updates
         }
 
         public override VisualElement CreateInspector() {
             VisualElement root = new VisualElement();
-            _targetComponent ??= (SeloreHole)target;
 
             // Properties
             var targetObjectProp = serializedObject.FindProperty("targetObject");
@@ -225,7 +222,7 @@ namespace org.Tayou.AmityEdits {
             Utils.CreateToySupportRow(summaryBox, out var overall, out var toyPlug, out var toyTouch, out var toyFrot);
 
             Action updateSummary = () => {
-                var h = _targetComponent;
+                var h = Target;
                 sRole.text = $"Role: {h.role}";
                 sLights.text = h.featureLights ? "Generating Lights: 2" : "Generating Lights: 0";
                 sSenders.text = h.featureContactSenders

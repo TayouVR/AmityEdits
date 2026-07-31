@@ -5,8 +5,7 @@ using UnityEngine.UIElements;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(OrificeDepthAction))]
-    public class OrificeDepthActionEditor : AmityBaseEditor {
-        private OrificeDepthAction _targetComponent;
+    public class OrificeDepthActionEditor : AmityBaseEditor<OrificeDepthAction> {
         private VisualElement graphContainer;
         private VisualElement pointsContainer;
         
@@ -15,13 +14,11 @@ namespace org.Tayou.AmityEdits {
         private Vector2 panOffset = Vector2.zero;
         
         private void OnEnable() {
-            _targetComponent = (OrificeDepthAction) target;
             //EditorApplication.update += Update; // handle any continuous updates
         }
         
         public override VisualElement CreateInspector() {
             VisualElement root = new VisualElement();
-            _targetComponent ??= (OrificeDepthAction) target;
             
             // Load USS stylesheet (optional)
             var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/Editor/OrificeDepthActionGraph.uss");
@@ -33,11 +30,11 @@ namespace org.Tayou.AmityEdits {
             root.Add(new PropertyField(depthUnitsProp));
             root.Add(new Label("Depth: "));
             var depthProp = serializedObject.FindProperty("depth");
-            var depthSlider = new DepthActionSlider(depthProp, _targetComponent.depthActionUnits);
+            var depthSlider = new DepthActionSlider(depthProp, Target.depthActionUnits);
             root.Add(depthSlider);
             root.Add(new Label("Width: "));
             var widthProp = serializedObject.FindProperty("penetrationWidth");
-            var widthSlider = new DepthActionSliderWidth(widthProp, _targetComponent.depthActionUnits);
+            var widthSlider = new DepthActionSliderWidth(widthProp, Target.depthActionUnits);
             root.Add(widthSlider);
             
             // Create graph container
@@ -107,8 +104,8 @@ namespace org.Tayou.AmityEdits {
             var painter = ctx.painter2D;
             painter.strokeColor = new Color(0.3f, 0.3f, 0.3f);
             painter.lineWidth = 1f;
-            var gridHeight = _targetComponent.depth.y - _targetComponent.depth.x;
-            var gridWidth = _targetComponent.penetrationWidth.y - _targetComponent.penetrationWidth.x;
+            var gridHeight = Target.depth.y - Target.depth.x;
+            var gridWidth = Target.penetrationWidth.y - Target.penetrationWidth.x;
             
             var rect = graphContainer.contentRect;
             float gridSpacingX = gridHeight * 10f * zoom;
@@ -132,7 +129,7 @@ namespace org.Tayou.AmityEdits {
         }
         
         private void DrawAxes(MeshGenerationContext ctx) {
-            if (_targetComponent == null) return;
+            if (Target == null) return;
             
             var painter = ctx.painter2D;
             var rect = graphContainer.contentRect;
@@ -159,9 +156,9 @@ namespace org.Tayou.AmityEdits {
         private void RefreshGraph() {
             pointsContainer.Clear();
             
-            if (_targetComponent == null || _targetComponent.actions == null) return;
+            if (Target == null || Target.actions == null) return;
             
-            foreach (var actionState in _targetComponent.actions) {
+            foreach (var actionState in Target.actions) {
                 CreatePointElement(actionState);
             }
         }
@@ -206,16 +203,16 @@ namespace org.Tayou.AmityEdits {
         }
         
         private Vector2 GetGraphPosition(float depth, float width) {
-            if (_targetComponent == null) return Vector2.zero;
+            if (Target == null) return Vector2.zero;
             
             var rect = graphContainer.contentRect;
             
             // Normalize depth and width to 0-1 range
-            float depthRange = _targetComponent.depth.x - _targetComponent.depth.y;
-            float widthRange = _targetComponent.penetrationWidth.x - _targetComponent.penetrationWidth.y;
+            float depthRange = Target.depth.x - Target.depth.y;
+            float widthRange = Target.penetrationWidth.x - Target.penetrationWidth.y;
             
-            float normalizedDepth = (depth - _targetComponent.depth.y) / depthRange;
-            float normalizedWidth = (width - _targetComponent.penetrationWidth.y) / widthRange;
+            float normalizedDepth = (depth - Target.depth.y) / depthRange;
+            float normalizedWidth = (width - Target.penetrationWidth.y) / widthRange;
             
             // Convert to screen coordinates (flip Y axis)
             float x = normalizedDepth * rect.width;
@@ -225,7 +222,7 @@ namespace org.Tayou.AmityEdits {
         }
         
         private Vector2 GetWorldPosition(Vector2 screenPos) {
-            if (_targetComponent == null) return Vector2.zero;
+            if (Target == null) return Vector2.zero;
             
             var rect = graphContainer.contentRect;
             
@@ -237,31 +234,31 @@ namespace org.Tayou.AmityEdits {
             float normalizedWidth = 1f - (localPos.y / rect.height);
             
             // Convert to world coordinates
-            float depthRange = _targetComponent.depth.x - _targetComponent.depth.y;
-            float widthRange = _targetComponent.penetrationWidth.x - _targetComponent.penetrationWidth.y;
+            float depthRange = Target.depth.x - Target.depth.y;
+            float widthRange = Target.penetrationWidth.x - Target.penetrationWidth.y;
             
-            float depth = normalizedDepth * depthRange + _targetComponent.depth.y;
-            float width = normalizedWidth * widthRange + _targetComponent.penetrationWidth.y;
+            float depth = normalizedDepth * depthRange + Target.depth.y;
+            float width = normalizedWidth * widthRange + Target.penetrationWidth.y;
             
             return new Vector2(depth, width);
         }
         
         private void AddNewPoint() {
-            if (_targetComponent == null) return;
+            if (Target == null) return;
             
-            Undo.RecordObject(_targetComponent, "Add Depth Action Point");
+            Undo.RecordObject(Target, "Add Depth Action Point");
             
             var newAction = new OrificeDepthActionState {
-                depth = (_targetComponent.depth.y + _targetComponent.depth.x) / 2f,
-                width = (_targetComponent.penetrationWidth.y + _targetComponent.penetrationWidth.x) / 2f,
+                depth = (Target.depth.y + Target.depth.x) / 2f,
+                width = (Target.penetrationWidth.y + Target.penetrationWidth.x) / 2f,
                 action = null
             };
             
-            var actionList = new System.Collections.Generic.List<OrificeDepthActionState>(_targetComponent.actions ?? new OrificeDepthActionState[0]);
+            var actionList = new System.Collections.Generic.List<OrificeDepthActionState>(Target.actions ?? new OrificeDepthActionState[0]);
             actionList.Add(newAction);
-            _targetComponent.actions = actionList.ToArray();
+            Target.actions = actionList.ToArray();
             
-            EditorUtility.SetDirty(_targetComponent);
+            EditorUtility.SetDirty(Target);
             RefreshGraph();
         }
         
@@ -313,14 +310,14 @@ namespace org.Tayou.AmityEdits {
                 
                 Vector2 worldPos = editor.GetWorldPosition(evt.localPosition);
                 
-                Undo.RecordObject(editor._targetComponent, "Move Depth Action Point");
-                actionState.depth = Mathf.Clamp(worldPos.x, editor._targetComponent.depth.y, editor._targetComponent.depth.x);
-                actionState.width = Mathf.Clamp(worldPos.y, editor._targetComponent.penetrationWidth.y, editor._targetComponent.penetrationWidth.x);
+                Undo.RecordObject(editor.target, "Move Depth Action Point");
+                actionState.depth = Mathf.Clamp(worldPos.x, editor.Target.depth.y, editor.Target.depth.x);
+                actionState.width = Mathf.Clamp(worldPos.y, editor.Target.penetrationWidth.y, editor.Target.penetrationWidth.x);
                 
                 editor.UpdatePointPosition(target, actionState);
                 target.tooltip = $"Depth: {actionState.depth:F3}, Width: {actionState.width:F3}";
                 
-                EditorUtility.SetDirty(editor._targetComponent);
+                EditorUtility.SetDirty(editor.target);
                 evt.StopPropagation();
             }
             

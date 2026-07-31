@@ -26,13 +26,12 @@ using UnityEngine.UIElements;
 namespace org.Tayou.AmityEdits {
 
 [CustomEditor(typeof(SeloreShaderPatcher))]
-public class SeloreShaderPatcherEditor : UnityEditor.Editor {
+public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
 
     private Renderer _autoDiscoveredRenderer;
 
     public override VisualElement CreateInspectorGUI() {
         var root = new VisualElement();
-        var target = serializedObject.targetObject as SeloreShaderPatcher;
 
         // --- Renderer selection --------------------------------------------
         var rendererFieldWrapper = new VisualElement();
@@ -184,14 +183,13 @@ public class SeloreShaderPatcherEditor : UnityEditor.Editor {
     /// Resolve the renderer that will be used at build time, so we can show
     /// its blendshapes in the editor.  Mirrors the logic in SelorePatcherPass.
     private Renderer GetResolvedRenderer() {
-        var target = serializedObject.targetObject as SeloreShaderPatcher;
-        if (target == null) return null;
+        if (Target == null) return null;
 
-        if (!target.findRenderer && target.renderer != null) return target.renderer;
+        if (!Target.findRenderer && Target.renderer != null) return Target.renderer;
 
-        return target.GetComponent<Renderer>()
-            ?? target.GetComponentInParent<Renderer>()
-            ?? target.GetComponentInChildren<Renderer>(true);
+        return Target.GetComponent<Renderer>()
+            ?? Target.GetComponentInParent<Renderer>()
+            ?? Target.GetComponentInChildren<Renderer>(true);
     }
 
 }

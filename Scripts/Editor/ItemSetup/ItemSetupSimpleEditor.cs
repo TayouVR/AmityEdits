@@ -22,9 +22,9 @@ using UnityEngine.UIElements;
 namespace org.Tayou.AmityEdits {
     
     [CustomEditor(typeof(ItemSetupSimple), true)]
-    public class ItemSetupSimpleEditor : Editor {
+    public class ItemSetupSimpleEditor : AmityBaseEditor<ItemSetupSimple> {
         /*protected override void OnHeaderGUI() {
-            ((VRCFuryItemSetupSimple) target).enabled = GUILayout.Toggle(((VRCFuryItemSetupSimple) target).enabled, "");
+            ((VRCFuryItemSetupSimple) Target).enabled = GUILayout.Toggle(((VRCFuryItemSetupSimple) Target).enabled, "");
             GUI.Box(new Rect(0, 0, 200, EditorGUIUtility.singleLineHeight), new GUIContent("Tayou"));
             InvokeMethod(this, "OnHeaderGUI", this, "Simple Item Setup", 200);
         }
@@ -48,7 +48,7 @@ namespace org.Tayou.AmityEdits {
             var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Packages/org.tayou.vrcfury-extensions/Scripts/Editor/ItemSetupSimpleEditor.uxml");
             VisualElement uxmlFileContents = visualTree.CloneTree();
             root.Add(uxmlFileContents);
-            switch (((ItemSetupSimple)target).itemPreviewSelection) {
+            switch (Target.itemPreviewSelection) {
                 case ItemSetupSimple.ItemPreviewSelection.RestPosition:
                     break;
                 case ItemSetupSimple.ItemPreviewSelection.LeftHand:

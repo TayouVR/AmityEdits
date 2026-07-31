@@ -24,18 +24,10 @@ using UnityEngine.UIElements;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(ClothingItem))]
-    public class ClothingItemEditor : AmityBaseEditor {
-        private ClothingItem _targetComponent;
-
-        public ClothingItemEditor() {
-            _targetComponent = (ClothingItem) target;
-        }
+    public class ClothingItemEditor : AmityBaseEditor<ClothingItem> {
 
         public override VisualElement CreateInspector() {
             VisualElement root = new VisualElement();
-            if (!_targetComponent) {
-                _targetComponent = (ClothingItem) target;
-            }
             
             // Properties
             var nameProp = serializedObject.FindProperty("name");
@@ -107,9 +99,9 @@ namespace org.Tayou.AmityEdits {
             root.TrackPropertyValue(actionProp, _ => UpdateVisibility());
             
             incompatibilitiesField.TrackPropertyValue(incompatibilitiesProp, _ => {
-                foreach (var clothingItem in _targetComponent.incompatibilities) {
-                    if (!clothingItem.incompatibilities.Contains(_targetComponent)) {
-                        clothingItem.incompatibilities.Add(_targetComponent);
+                foreach (var clothingItem in Target.incompatibilities) {
+                    if (!clothingItem.incompatibilities.Contains(Target)) {
+                        clothingItem.incompatibilities.Add(Target);
                     }
                 }
             });

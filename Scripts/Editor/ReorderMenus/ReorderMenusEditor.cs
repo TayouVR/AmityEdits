@@ -27,15 +27,13 @@ using TreeView = UnityEngine.UIElements.TreeView;
 
 namespace org.Tayou.AmityEdits {
     [CustomEditor(typeof(ReorderMenus), true)]
-    public class ReorderMenusEditor : AmityBaseEditor {
-        private ReorderMenus _reorderMenus;
+    public class ReorderMenusEditor : AmityBaseEditor<ReorderMenus> {
         
         private void DrawHeaderCallback(Rect rect) {
             EditorGUI.LabelField(rect, "Targets");
         }
         
         private void OnEnable() {
-            _reorderMenus = (ReorderMenus) target;
             //EditorApplication.update += Update; // handle any continuous updates
         }
 

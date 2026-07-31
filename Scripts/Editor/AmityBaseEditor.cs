@@ -81,9 +81,14 @@ namespace org.Tayou.AmityEdits {
             }
         }
     }
-    public abstract class AmityBaseEditor : Editor {
+    public abstract class AmityBaseEditor<T> : Editor where T : MonoBehaviour {
         private VisualElement _root;
         private string _currentSelection = "en_US";
+
+        /// <summary>
+        ///   <para>The object being inspected.</para>
+        /// </summary>
+        public T Target => (T)target;
 
         protected void DrawHeader(Rect headerShape) {
             float currentInspectorWidth = this.GetInstanceID() != 0 ? EditorWindow.focusedWindow.position.width : 0;
@@ -103,7 +108,7 @@ namespace org.Tayou.AmityEdits {
                 GUI.Box(_rect, new GUIContent(GetProperty("targetTitle", typeof(Editor), this) as string), GUIStyles.HeaderStyle);
                 
                 _rect = new Rect(headerViewRect);
-                ((ItemSetup) target).enabled = GUI.Toggle(_rect, ((ItemSetup) target).enabled, "");
+                Target.enabled = GUI.Toggle(_rect, Target.enabled, "");
             }
             GUILayout.EndVertical();
             // End of custom section

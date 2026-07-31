@@ -27,18 +27,10 @@ using ExpressionsMenu = VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu;
 
 namespace org.Tayou.AmityEdits.MenuItem {
     [CustomEditor(typeof(MenuItem))]
-    public class MenuItemEditor : AmityBaseEditor {
-        private MenuItem _targetComponent;
-
-        public MenuItemEditor() {
-            _targetComponent = (MenuItem) target;
-        }
+    public class MenuItemEditor : AmityBaseEditor<MenuItem> {
 
         public override VisualElement CreateInspector() {
             VisualElement root = new VisualElement();
-            if (!_targetComponent) {
-                _targetComponent = (MenuItem) target;
-            }
             
             // Properties
             var pathMethodProp = serializedObject.FindProperty("pathMethod");
@@ -62,7 +54,7 @@ namespace org.Tayou.AmityEdits.MenuItem {
 
             void UpdateControlOptions() {
                 controlOptionsContainer.Clear();
-                var menu = _targetComponent.parentMenu ?? _targetComponent.transform.GetComponentsInParent<VRCAvatarDescriptor>().First().expressionsMenu;
+                var menu = Target.parentMenu ?? Target.transform.GetComponentsInParent<VRCAvatarDescriptor>().First().expressionsMenu;
                 if (((object)menu) != null) {
                     var controlOptions = new ExpressionsControlOptions(vrcMenuControlProp, menu);
                     controlOptionsContainer.Add(controlOptions);
