@@ -7,5 +7,6 @@ namespace org.Tayou.AmityEdits.Actions {
     public class GameObjectToggleAction : BaseAmityAction {
         public GameObject target;
         public bool active;
+        public Locality locality = Locality.Both;
     }
 }

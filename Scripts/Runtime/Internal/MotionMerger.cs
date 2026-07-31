@@ -11,10 +11,13 @@ namespace org.Tayou.AmityEdits.Internal {
         [SerializeField] private int _layerPriority;
         [SerializeField] private VRCAvatarDescriptor.AnimLayerType _layerType = VRCAvatarDescriptor.AnimLayerType.FX;
         [SerializeField] private Motion _motion;
+        [SerializeField] private Locality _locality = Locality.Both;
 
         public int LayerPriority { get => _layerPriority; set => _layerPriority = value; }
         public VRCAvatarDescriptor.AnimLayerType LayerType { get => _layerType; set => _layerType = value; }
         public Motion Motion { get => _motion; set => _motion = value; }
+        public Locality Locality { get => _locality; set => _locality = value; }
+
         public string GetMotionBasePath(object ndmfBuildContext, bool clearPath = true) {
             return "";
         }

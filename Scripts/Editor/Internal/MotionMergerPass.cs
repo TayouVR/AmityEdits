@@ -12,15 +12,22 @@ namespace org.Tayou.AmityEdits.Internal {
         public override string DisplayName => "Merge Motions";
         
         public const string AlwaysOne = "Amity/Internal/One";
+        public const string LocalParam = "IsLocal";
         internal const string BlendTreeLayerName = "Amity: Merge Blend Tree";
         
         private AnimatorServicesContext _asc;
         private Dictionary<int, VirtualBlendTree> _rootBlendTrees;
+        // Cached Direct sub-trees inside the shared per-root locality 1D tree.
+        // Key: layerPriority. Local branch is active at IsLocal=1, Remote at IsLocal=0.
+        private Dictionary<int, VirtualBlendTree> _localBranches;
+        private Dictionary<int, VirtualBlendTree> _remoteBranches;
         private HashSet<string> _parameterNames;
 
         protected override void Execute(BuildContext ctx) {
             _asc = ctx.Extension<AnimatorServicesContext>();
             _rootBlendTrees =  new Dictionary<int, VirtualBlendTree>();
+            _localBranches = new Dictionary<int, VirtualBlendTree>();
+            _remoteBranches = new Dictionary<int, VirtualBlendTree>();
             _parameterNames = new HashSet<string>();
 
             var fx = _asc.ControllerContext.Controllers[VRCAvatarDescriptor.AnimLayerType.FX];
@@ -94,14 +101,33 @@ namespace org.Tayou.AmityEdits.Internal {
             }
 
             var rootBlend = GetRootBlendTree(component.LayerPriority, component.LayerType);
-            
-            rootBlend.Children = rootBlend.Children.Add(new() {
+
+            // Both -> straight into the always-on Direct root.
+            // Local/Remote -> into the shared locality branch (a Direct sub-tree gated by IsLocal).
+            var target = component.Locality switch {
+                Locality.Local => GetLocalityBranch(component.LayerPriority, component.LayerType, true),
+                Locality.Remote => GetLocalityBranch(component.LayerPriority, component.LayerType, false),
+                _ => rootBlend
+            };
+
+            target.Children = target.Children.Add(new() {
                 Motion = virtualMotion,
                 DirectBlendParameter = AlwaysOne,
                 Threshold = 1,
                 CycleOffset = 1,
                 TimeScale = 1,
             });
+
+            // IsLocal drives the shared locality 1D tree. Only create it if the
+            // animator doesn't already define it, so we never clobber an existing
+            // (possibly Bool) definition from the base animator.
+            if (component.Locality != Locality.Both && !fx.Parameters.ContainsKey(LocalParam)) {
+                fx.Parameters = fx.Parameters.SetItem(LocalParam, new AnimatorControllerParameter {
+                    name = LocalParam,
+                    type = AnimatorControllerParameterType.Bool,
+                    defaultBool = false
+                });
+            }
 
             foreach (var asset in virtualMotion.AllReachableNodes()) {
                 if (asset is VirtualBlendTree bt2) {
@@ -173,6 +199,59 @@ namespace org.Tayou.AmityEdits.Internal {
             _rootBlendTrees[layerPriority].BlendParameter = AlwaysOne;
             
             return _rootBlendTrees[layerPriority];
+        }
+
+        /// <summary>
+        /// Returns the cached Direct sub-tree for local- or remote-only motions on the given root.
+        /// A single shared Simple1D tree (keyed on IsLocal) is created per root, containing two
+        /// Direct branches: one active at IsLocal=1 (local) and one at IsLocal=0 (remote).
+        /// Local/remote-only motions are appended as direct children of the matching branch.
+        /// </summary>
+        private VirtualBlendTree GetLocalityBranch(int layerPriority, VRCAvatarDescriptor.AnimLayerType layerType, bool local) {
+            var cache = local ? _localBranches : _remoteBranches;
+            if (cache.ContainsKey(layerPriority)) return cache[layerPriority];
+
+            EnsureLocalityTree(layerPriority, layerType);
+            return cache[layerPriority];
+        }
+
+        /// <summary>
+        /// Lazily builds the shared IsLocal 1D tree and its two Direct branches, wiring them into
+        /// the always-on Direct root and populating the branch caches.
+        /// </summary>
+        private void EnsureLocalityTree(int layerPriority, VRCAvatarDescriptor.AnimLayerType layerType) {
+            if (_localBranches.ContainsKey(layerPriority) && _remoteBranches.ContainsKey(layerPriority)) return;
+
+            var rootBlend = GetRootBlendTree(layerPriority, layerType);
+
+            var localityTree = VirtualBlendTree.Create("Locality");
+            localityTree.BlendType = BlendTreeType.Simple1D;
+            localityTree.BlendParameter = LocalParam;
+            localityTree.UseAutomaticThresholds = false;
+
+            var remoteBranch = VirtualBlendTree.Create("Remote");
+            remoteBranch.BlendType = BlendTreeType.Direct;
+            remoteBranch.BlendParameter = AlwaysOne;
+
+            var localBranch = VirtualBlendTree.Create("Local");
+            localBranch.BlendType = BlendTreeType.Direct;
+            localBranch.BlendParameter = AlwaysOne;
+
+            // Simple1D children ordered by ascending threshold: remote (0) then local (1).
+            localityTree.Children = localityTree.Children
+                .Add(new() { Motion = remoteBranch, Threshold = 0, TimeScale = 1 })
+                .Add(new() { Motion = localBranch, Threshold = 1, TimeScale = 1 });
+
+            rootBlend.Children = rootBlend.Children.Add(new() {
+                Motion = localityTree,
+                DirectBlendParameter = AlwaysOne,
+                Threshold = 1,
+                CycleOffset = 1,
+                TimeScale = 1,
+            });
+
+            _localBranches[layerPriority] = localBranch;
+            _remoteBranches[layerPriority] = remoteBranch;
         }
     }
 }

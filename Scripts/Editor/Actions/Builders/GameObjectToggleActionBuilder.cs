@@ -71,6 +71,7 @@ namespace org.Tayou.AmityEdits.Actions.Editor.Builders {
             // };
             var mergeBlendTree = a.target.AddComponent<MotionMerger>();
             mergeBlendTree.Motion = blendTree.BlendTree;
+            mergeBlendTree.Locality = a.locality;
             mergeBlendTree.LayerPriority = int.MinValue + 100;
             // var modularAvatar = MaAc.Create(maGameObject);
 
