@@ -249,8 +249,8 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             ) {
                 [unroll]
                 for (int segment = 0; segment < SPS_DEBUG_RING_SEGMENTS; segment++) {
-                    float angleA = 6.2831853 * segment / SPS_DEBUG_RING_SEGMENTS;
-                    float angleB = 6.2831853 * (segment + 1) / SPS_DEBUG_RING_SEGMENTS;
+                    float angleA = UNITY_TWO_PI * segment / SPS_DEBUG_RING_SEGMENTS;
+                    float angleB = UNITY_TWO_PI * (segment + 1) / SPS_DEBUG_RING_SEGMENTS;
                     float3 pointA = center + (right * cos(angleA) + up * sin(angleA)) * radius;
                     float3 pointB = center + (right * cos(angleB) + up * sin(angleB)) * radius;
                     sps_debug_emit_line(pointA, pointB, _LineWidthPx, color, source, stream);
