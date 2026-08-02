@@ -64,7 +64,7 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
             m.name = $"{m.name}_SelorePatched";
             AssetDatabase.AddObjectToAsset(m, ctx.AssetContainer);
 
-            SelorePatcher.Patch(m, ctx, plug.keepImports, plug.shaderToPatch);
+            SelorePatcher.Patch(m, ctx, plug.keepImports, plug.shaderToPatch, plug.featureSpsEnabled);
 
             // Prevent material-property strippers (Poiyomi, lilToon) from
             // dropping our properties because nothing in the shader reads them
@@ -94,9 +94,13 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
 
             // SPS properties
             if (plug.featureSpsEnabled) {
+                // [Toggle(SELORE_SPS)] only drives the keyword from the material
+                // inspector; at build time we must enable it explicitly or the
+                // SPS shader variant is never used.
+                m.EnableKeyword("SELORE_SPS");
                 SetFloatIfHas(m, PropSpsEnabled, 1f);
                 uint spsId = plug.spsId != 0f
-                    ? (uint)Mathf.RoundToInt(plug.spsId)
+                    ? SpsCellPreview.MaskId((uint)Mathf.RoundToInt(plug.spsId))
                     : SpsCellPreview.ComputeIdFromWorld(plug.transform.position);
                 SetFloatIfHas(m, PropSpsId, spsId);
                 SetFloatIfHas(m, PropSpsPlayerId, plug.spsPlayerId);

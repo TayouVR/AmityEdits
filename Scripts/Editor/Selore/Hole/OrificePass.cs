@@ -65,12 +65,12 @@ namespace org.Tayou.AmityEdits {
             
             foreach (var orifice in components) {
                 Debug.Log($"orifice: {orifice.name}, target: {orifice.targetObject}, role: {orifice.role}, channel: {orifice.channel}, path: {orifice.gameObject.transform.GetHierarchyPath(ctx.AvatarRootObject.transform)}");
-                CreateOrificeInPrefab(orifice);
+                CreateOrificeInPrefab(orifice, ctx);
             }
         }
 
         // follow spec as defined here: https://gist.github.com/TayouVR/aad7f8b6d83264b379d90e5100653a76
-        private void CreateOrificeInPrefab(SeloreHole seloreHole) {
+        private void CreateOrificeInPrefab(SeloreHole seloreHole, BuildContext ctx) {
             var rootObject = seloreHole.targetObject == null ? seloreHole.gameObject.transform : seloreHole.targetObject;
 
             Debug.Log($"Feature generation for orifice {seloreHole.name} in:");
@@ -95,7 +95,7 @@ namespace org.Tayou.AmityEdits {
             
             // SPS cell marker
             if (seloreHole.featureSpsCell) {
-                CreateSpsMarker(seloreHole, rootObject);
+                CreateSpsMarker(seloreHole, rootObject, ctx);
             }
 
             // toy contact receivers
@@ -108,15 +108,17 @@ namespace org.Tayou.AmityEdits {
             // TODO: repath animations for animatable component properties to lights and contacts
         }
 
-        private void CreateSpsMarker(SeloreHole seloreHole, Transform root) {
+        private void CreateSpsMarker(SeloreHole seloreHole, Transform root, BuildContext ctx) {
             var spsObj = new GameObject("SPS Cell", typeof(MeshFilter), typeof(MeshRenderer));
             spsObj.transform.SetParent(root, false);
+            // Keep identity scale: the geometry shader derives the cell's world
+            // position/orientation/scale from the object transform. The cell is
+            // written to NDC, so it never appears as visible geometry.
+            spsObj.transform.localScale = Vector3.one;
 
-            // Scale to near-zero so the marker is invisible in-editor.
-            // VRCFury uses an animator to restore scale to 1 at runtime.
-            spsObj.transform.localScale = Vector3.one * 0.001f;
-
-            // Trigger mesh: a single triangle
+            // Trigger mesh: a single triangle, authored at world scale. The mesh
+            // bounds are large so the renderer is never frustum-culled; the cell
+            // geometry shader writes straight to NDC and ignores object position.
             var mesh = new Mesh { name = "SpsTriggerMesh" };
             mesh.vertices = new Vector3[] {
                 new Vector3(-5, -5, 0),
@@ -129,11 +131,11 @@ namespace org.Tayou.AmityEdits {
                 new Vector2(0, 1)
             };
             mesh.triangles = new int[] { 0, 1, 2 };
-            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 5);
-            mesh.hideFlags = HideFlags.HideAndDontSave;
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 100000f);
 
             var mf = spsObj.GetComponent<MeshFilter>();
             mf.sharedMesh = mesh;
+            AssetDatabase.AddObjectToAsset(mesh, ctx.AssetContainer);
 
             // Shader: try Amity first, fall back to VRCFury
             var shader = Shader.Find("Hidden/Amity/SpsSocketMarker");
@@ -148,9 +150,9 @@ namespace org.Tayou.AmityEdits {
 
             var mat = new Material(shader) {
                 name = "SpsSocketMarker_Generated",
-                hideFlags = HideFlags.HideAndDontSave,
                 enableInstancing = true
             };
+            AssetDatabase.AddObjectToAsset(mat, ctx.AssetContainer);
 
             // Generate a stable ID from position
             Transform target = seloreHole.targetObject != null ? seloreHole.targetObject : seloreHole.transform;
@@ -165,9 +167,9 @@ namespace org.Tayou.AmityEdits {
             if (grabShader != null) {
                 grabMat = new Material(grabShader) {
                     name = "SpsDataGrabPass_Generated",
-                    hideFlags = HideFlags.HideAndDontSave,
                     enableInstancing = true
                 };
+                AssetDatabase.AddObjectToAsset(grabMat, ctx.AssetContainer);
                 grabMat.SetFloat("_SPS_Configured", 1f);
                 grabMat.SetFloat("_SPS_Id", id);
                 grabMat.SetFloat("_SPS_PlayerId", 0f);

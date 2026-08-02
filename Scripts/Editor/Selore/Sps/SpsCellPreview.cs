@@ -394,10 +394,21 @@ namespace org.Tayou.AmityEdits.EditorSeloreSps {
         }
 
         /// <summary>
-        /// Deterministic ID from a world position (mirrors the shader's fallback).
+        /// Mask an SPS unique ID to 24 bits (never 0). Material float properties
+        /// only represent integers exactly up to 2^24, so larger IDs would
+        /// silently corrupt when baked via Material.SetFloat.
+        /// </summary>
+        public static uint MaskId(uint id) {
+            id &= 0x00ffffffu;
+            return id == 0 ? 1u : id;
+        }
+
+        /// <summary>
+        /// Deterministic ID from a world position (mirrors the shader's fallback),
+        /// masked to 24 bits for float-property safety.
         /// </summary>
         public static uint ComputeIdFromWorld(Vector3 worldPos) {
-            return HashWorld(worldPos, 0);
+            return MaskId(HashWorld(worldPos, 0));
         }
 
         static uint[] BuildTagsFromHole(SeloreHole hole) {

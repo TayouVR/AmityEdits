@@ -15,13 +15,13 @@ namespace org.Tayou.AmityEdits {
     public static class SelorePatcher {
         // Bump this whenever the injected code changes so cached patched shaders
         // are invalidated and regenerated.
-        private const string HashBuster = "selore-1";
+        private const string HashBuster = "selore-2";
 
-        public static void Patch(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection) {
+        public static void Patch(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection, bool spsEnabled = false) {
             if (!mat.shader) return;
             try {
                 var renderQueue = mat.renderQueue;
-                PatchUnsafe(mat, ctx, keepImports, selection);
+                PatchUnsafe(mat, ctx, keepImports, selection, spsEnabled);
                 mat.renderQueue = renderQueue;
             } catch (Exception e) {
                 throw new Exception(
@@ -35,9 +35,9 @@ namespace org.Tayou.AmityEdits {
             return new Regex(pattern, RegexOptions.Compiled);
         }
 
-        private static void PatchUnsafe(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection) {
+        private static void PatchUnsafe(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection, bool spsEnabled) {
             var shader = mat.shader;
-            var newShader = PatchUnsafe(shader, ctx, keepImports, selection);
+            var newShader = PatchUnsafe(shader, ctx, keepImports, selection, spsEnabled);
             mat.shader = newShader.shader;
             AssetDatabase.AddObjectToAsset(newShader.shader, ctx.AssetContainer);
         }
@@ -46,7 +46,7 @@ namespace org.Tayou.AmityEdits {
             public Shader shader;
             public int patchedPasses;
         }
-        private static PatchResult PatchUnsafe(Shader shader, BuildContext ctx, bool keepImports, ShaderPatchSelection selection, string parentHash = null) {
+        private static PatchResult PatchUnsafe(Shader shader, BuildContext ctx, bool keepImports, ShaderPatchSelection selection, bool spsEnabled, string parentHash = null) {
             var pathToSelore = GetPathToIncludes(selection);
             var contents = ReadFile(shader, selection);
 
@@ -85,7 +85,7 @@ namespace org.Tayou.AmityEdits {
             }
             
             var md5 = MD5.Create();
-            var hashContent = contents + seloreMain + HashBuster;
+            var hashContent = contents + seloreMain + HashBuster + (spsEnabled ? "+sps" : "");
             var hashContentBytes = Encoding.UTF8.GetBytes(hashContent);
             var hashBytes = md5.ComputeHash(hashContentBytes);
             var hash = string.Join("", Enumerable.Range(0, hashBytes.Length)
@@ -123,7 +123,7 @@ namespace org.Tayou.AmityEdits {
                 pass => {
                     patchedPasses++;
                     try {
-                        return PatchPass(pass, seloreMain, false);
+                        return PatchPass(pass, seloreMain, false, spsEnabled);
                     } catch (Exception e) {
                         throw new Exception($"Failed to patch pass #{patchedPasses}: " + e.Message, e);
                     }
@@ -132,7 +132,7 @@ namespace org.Tayou.AmityEdits {
                     if (GetRegex(@"\n[ \t]*#pragma[ \t]+surface").IsMatch(rest)) {
                         patchedPasses++;
                         try {
-                            return PatchPass(rest, seloreMain, true);
+                            return PatchPass(rest, seloreMain, true, spsEnabled);
                         } catch (Exception e) {
                             throw new Exception($"Failed to patch surface shader: " + e.Message, e);
                         }
@@ -150,7 +150,7 @@ namespace org.Tayou.AmityEdits {
                 }
 
                 if (!childShaders.TryGetValue(includedShader, out var rewrittenIncludedShader)) {
-                    var output = PatchUnsafe(includedShader, ctx, keepImports, selection, hash);
+                    var output = PatchUnsafe(includedShader, ctx, keepImports, selection, spsEnabled, hash);
                     patchedPasses += output.patchedPasses;
                     rewrittenIncludedShader = output.shader;
                     childShaders[includedShader] = rewrittenIncludedShader;
@@ -188,7 +188,7 @@ namespace org.Tayou.AmityEdits {
             };
         }
 
-        private static string PatchPass(string pass, string seloreMain, bool isSurfaceShader) {
+        private static string PatchPass(string pass, string seloreMain, bool isSurfaceShader, bool spsEnabled) {
             var newVertFunction = "seloreVert";
             var pragmaKeyword = isSurfaceShader ? "surface" : "vertex";
             string oldVertFunction = null;
@@ -342,6 +342,14 @@ namespace org.Tayou.AmityEdits {
             var colorParam = FindParam("COLOR", "seloreColor", "float4");
 
             var newHeader = new List<string>();
+            if (spsEnabled) {
+                // The SPS branch in core.cginc is gated on this keyword. Without the
+                // pragma no variant containing the SPS code path would ever exist.
+                newHeader.Add("#pragma multi_compile _ SELORE_SPS");
+                // Vertex-stage Texture2D.Load (grid reads) requires SM4+. Unity uses
+                // the highest #pragma target present in the pass.
+                newHeader.Add("#pragma target 5.0");
+            }
             // Enable appdata features in shaders where they may be controlled by preprocessor defines
             // liltoon
             newHeader.Add("#define LIL_APP_POSITION");

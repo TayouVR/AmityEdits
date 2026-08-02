@@ -17,6 +17,7 @@
  */
 using System.Linq;
 using UnityEngine;
+using UnityEditor;
 using nadena.dev.ndmf;
 using org.Tayou.AmityEdits.EditorSeloreSps;
 using org.Tayou.AmityEdits.ShaderPatcher;
@@ -32,7 +33,17 @@ namespace org.Tayou.AmityEdits {
             var components = avatarDescriptor.GetComponentsInChildren<SeloreShaderPatcher>(true);
             if (components.Length == 0) return;
 
+            // Cache patched materials per source material + config so a material
+            // shared across renderers/components isn't cloned redundantly.
+            var patchedCache = new System.Collections.Generic.Dictionary<Material, Material>();
+
             foreach (var plug in components) {
+                if (plug.shaderToPatch != ShaderPatchSelection.AmitySelore) {
+                    Debug.LogWarning(
+                        $"[Selore] Backend '{plug.shaderToPatch}' is not implemented yet; " +
+                        $"falling back to Amity Selore patching for {plug.transform.GetHierarchyPath()}.");
+                }
+
                 var renderer = ResolveRenderer(plug);
                 if (renderer == null) {
                     Debug.LogWarning(
@@ -54,10 +65,17 @@ namespace org.Tayou.AmityEdits {
                         continue;
                     }
                     try {
+                        Material patchedMat;
+                        if (patchedCache.TryGetValue(mat, out patchedMat) && patchedMat != null) {
+                            patched[i] = patchedMat;
+                            anyPatched = true;
+                            continue;
+                        }
                         Debug.Log($"[Selore] Patching material '{mat.name}' on " +
                                   $"{plug.transform.GetHierarchyPath()}. autoParams: {JsonUtility.ToJson(autoParams)}");
                         patched[i] = SeloreConfigurer.ConfigureSeloreMaterial(
                             ctx, renderer, mat, plug, autoParams);
+                        patchedCache[mat] = patched[i];
                         anyPatched = true;
                     } catch (System.Exception e) {
                         Debug.LogError(
@@ -85,14 +103,16 @@ namespace org.Tayou.AmityEdits {
         }
 
         private static void CreateSpsPlugRenderer(SeloreShaderPatcher plug, Renderer renderer, BuildContext ctx) {
-            // Resolver GameObject with two sub-materials: resolver + DataGrabPass
+            // Resolver GameObject with two sub-materials: resolver + DataGrabPass.
+            // Identity scale: the geometry shader derives world position/orientation
+            // from the object transform, and writes the cell straight to NDC.
             var resolverObj = new GameObject("SPS Plug Resolver", typeof(MeshFilter), typeof(MeshRenderer));
             resolverObj.transform.SetParent(plug.transform, false);
             resolverObj.transform.localPosition = Vector3.zero;
             resolverObj.transform.localRotation = Quaternion.identity;
-            resolverObj.transform.localScale = Vector3.one * 0.001f;
+            resolverObj.transform.localScale = Vector3.one;
 
-            // Trigger mesh (single triangle)
+            // Trigger mesh (single triangle) with large bounds so it is never culled.
             var mesh = new Mesh { name = "SpsPlugResolverMesh" };
             mesh.vertices = new Vector3[] {
                 new Vector3(-5, -5, 0),
@@ -105,17 +125,20 @@ namespace org.Tayou.AmityEdits {
                 new Vector2(0, 1)
             };
             mesh.triangles = new int[] { 0, 1, 2 };
-            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 5);
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 100000f);
             var mf = resolverObj.GetComponent<MeshFilter>();
             mf.sharedMesh = mesh;
+            AssetDatabase.AddObjectToAsset(mesh, ctx.AssetContainer);
 
-            // Compute unique ID
+            // Compute unique ID (masked to 24 bits for float-property safety)
             uint id = plug.spsId != 0f
-                ? (uint)Mathf.RoundToInt(plug.spsId)
+                ? SpsCellPreview.MaskId((uint)Mathf.RoundToInt(plug.spsId))
                 : SpsCellPreview.ComputeIdFromWorld(plug.transform.position);
             uint playerId = (uint)Mathf.RoundToInt(plug.spsPlayerId);
 
-            // Build tag arrays from SpsTagRule lists
+            // Build tag arrays from SpsTagRule lists. Default include slot 4 to the
+            // shared tag 1337 (matching VRCFury/socket default) when the user has no
+            // include rules at all, so cross-avatar default matching still works.
             var tagInclude = new uint[4];
             var tagExclude = new uint[4];
             for (int i = 0; i < 4; i++) {
@@ -125,6 +148,10 @@ namespace org.Tayou.AmityEdits {
                 if (i < plug.spsExcludeTags.Count && !string.IsNullOrEmpty(plug.spsExcludeTags[i].tag)) {
                     tagExclude[i] = SpsCellPreview.HashTag(plug.spsExcludeTags[i].tag);
                 }
+            }
+            bool anyInclude = tagInclude.Any(t => t != 0);
+            if (!anyInclude) {
+                tagInclude[3] = 1337;
             }
 
             // Resolver shader
@@ -146,9 +173,9 @@ namespace org.Tayou.AmityEdits {
 
             var resolverMat = new Material(resolverShader) {
                 name = "SpsPlugResolver_Generated",
-                hideFlags = HideFlags.HideAndDontSave,
                 enableInstancing = true
             };
+            AssetDatabase.AddObjectToAsset(resolverMat, ctx.AssetContainer);
 
             resolverMat.SetFloat("_SPS_Configured", 1f);
             resolverMat.SetFloat("_SPS_Id", id);
@@ -181,9 +208,9 @@ namespace org.Tayou.AmityEdits {
             if (grabShader != null) {
                 var grabMatLocal = new Material(grabShader) {
                     name = "SpsPlugDataGrabPass_Generated",
-                    hideFlags = HideFlags.HideAndDontSave,
                     enableInstancing = true
                 };
+                AssetDatabase.AddObjectToAsset(grabMatLocal, ctx.AssetContainer);
                 grabMatLocal.SetFloat("_SPS_Configured", 1f);
                 grabMatLocal.SetFloat("_SPS_Id", id);
                 grabMatLocal.SetFloat("_SPS_PlayerId", playerId);
@@ -209,9 +236,11 @@ namespace org.Tayou.AmityEdits {
             }
         }
 
-        // Compute radius samples from the plug mesh (75th percentile XY distance per Z bucket)
+        // Compute radius samples from the plug mesh (75th percentile XY distance
+        // per Z bucket). SPS2 exposes 16 samples on the RAD row, packed into
+        // _SPS_BakedRadiusSamples0..3 (4 float4s).
         private static void ComputeRadiusSamples(Renderer renderer, Material resolverMat) {
-            const int bucketCount = 32;
+            const int bucketCount = 16;
 
             var mesh = renderer.GetMesh();
             if (mesh == null) return;
@@ -243,7 +272,7 @@ namespace org.Tayou.AmityEdits {
             }
 
             // Compute 75th percentile per bucket and pack into float4
-            // 8 float4s = 32 floats (one per bucket)
+            // 4 float4s = 16 floats (one per bucket)
             for (int bucket = 0; bucket < bucketCount; bucket++) {
                 var dists = bucketDists[bucket];
                 if (dists.Count == 0) continue;
@@ -272,12 +301,11 @@ namespace org.Tayou.AmityEdits {
             resolverMat.SetFloat("_SPS_BakedRadius", zRange * 0.5f);
         }
 
-        // Resolve the renderer to patch: explicit reference, or nearest renderer
-        // when findRenderer is enabled. Prefer a renderer on the same GameObject,
-        // then walk up to the nearest parent renderer, then fall back to the
-        // first child renderer.
+        // Resolve the renderer to patch. When findRenderer is enabled, auto-discover
+        // (own component, nearest parent renderer, then first child). When disabled,
+        // use the explicit reference. An explicit reference always wins when present.
         private static Renderer ResolveRenderer(SeloreShaderPatcher plug) {
-            if (!plug.findRenderer && plug.renderer != null) {
+            if (!plug.findRenderer) {
                 return plug.renderer;
             }
             if (plug.renderer != null) {

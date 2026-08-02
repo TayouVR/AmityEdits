@@ -24,7 +24,7 @@
 #include "utils.cginc"
 
 void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float4 color) {
-    float3 worldStartPosition = mul(unity_ObjectToWorld, Selore_StartPosition);
+    float3 worldStartPosition = mul(unity_ObjectToWorld, float4(Selore_StartPosition, 1.0)).xyz;
     
     Selore_OrificeData o1;
     Selore_OrificeData o2;

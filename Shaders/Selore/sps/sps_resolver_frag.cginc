@@ -3,12 +3,14 @@
 
 #include "sps_cell_frag.cginc"
 #include "sps_cell_layout.cginc"
+#include "sps_dictionary.cginc"
 #include "sps_id.cginc"
 #include "sps_resolver_geom.cginc"
 #include "sps_resolver_shader_types.cginc"
 #include "sps_resolver_types.cginc"
 #include "sps_utils.cginc"
 
+// Return true when the socket cell's tags satisfy this plug's include/exclude rules.
 bool sps_resolver_tag_match(
     SpsCell socketCell,
     uint playerId
@@ -16,7 +18,8 @@ bool sps_resolver_tag_match(
     uint socketTags[SPS_SOCKET_PAYLOAD_TAG_COUNT];
     [unroll]
     for (uint i = 0u; i < SPS_SOCKET_PAYLOAD_TAG_COUNT; i++) {
-        socketTags[i] = socketCell.read_uint(SPS_SOCKET_PAYLOAD_TAG_START + i);
+        socketTags[i] = socketCell.read_uint(
+            sps_cell_pixel_index_from_payload_index(SPS_SOCKET_PAYLOAD_TAG_START + i));
     }
 
     float includeValues[4] = {
@@ -47,10 +50,7 @@ bool sps_resolver_tag_match(
         bool found = false;
         [unroll]
         for (uint si = 0u; si < SPS_SOCKET_PAYLOAD_TAG_COUNT; si++) {
-            if (socketTags[si] == tagHash) {
-                found = true;
-                break;
-            }
+            if (socketTags[si] == tagHash) { found = true; break; }
         }
         if (!found) return false;
 
@@ -68,10 +68,7 @@ bool sps_resolver_tag_match(
         bool found = false;
         [unroll]
         for (uint sj = 0u; sj < SPS_SOCKET_PAYLOAD_TAG_COUNT; sj++) {
-            if (socketTags[sj] == tagHash) {
-                found = true;
-                break;
-            }
+            if (socketTags[sj] == tagHash) { found = true; break; }
         }
         if (!found) continue;
 
@@ -85,84 +82,159 @@ bool sps_resolver_tag_match(
     return true;
 }
 
+// Is `slotIndex` the primary (first valid) replica slot for the given cell?
+bool sps_resolver_is_primary(SpsTexture tex, uint slotIndex, uint uniqueId, uint playerId) {
+    uint seed = sps_hash_id(uniqueId, playerId);
+    [unroll]
+    for (uint replica = 0u; replica < SPS_CELL_REPLICA_COUNT; replica++) {
+        int candidate = (int)sps_hashed_screen_slot_index_from_id(seed, replica);
+        if (candidate < 0 || candidate >= (int)sps_socket_slot_count()) continue;
+        SpsCell c = sps_get_cell(tex, candidate);
+        if (!sps_cell_check_magic(c)) continue;
+        return candidate == (int)slotIndex;
+    }
+    return false;
+}
+
+// Does the dictionary cell advertise the given group as in-use?
+bool sps_resolver_dictionary_group_present(SpsTexture tex, uint group) {
+    SpsCell dict = sps_get_cell(tex, SPS_DICTIONARY_INDEX);
+    if (!sps_cell_check_magic(dict)) return true; // no dictionary -> assume present
+    float4 magic = dict.read_rgba_raw(group);
+    return all(magic == SPS_CELL_DICTIONARY_MAGIC);
+}
+
+// Find the best socket cell for this plug and return its slot index (or -1).
+// Strategy: (1) same player+id fast path, then (2) dictionary-guided tag scan
+// so sockets with a different uniqueId are still discoverable.
 int sps_resolver_find_socket(
     SpsTexture gridTex,
     uint myUniqueId,
-    uint myPlayerId,
-    int startReplica,
-    out SpsCell foundCell
+    uint myPlayerId
 ) {
-    int slotCount = sps_socket_slot_count();
-    uint slotSeed = sps_hash_id(myUniqueId, myPlayerId);
+    int slotCount = (int)sps_socket_slot_count();
 
-    for (int r = startReplica; r < SPS_CELL_REPLICA_COUNT; r++) {
-        int candidateIdx = (int)sps_hashed_screen_slot_index_from_id(slotSeed, (uint)r);
-        if (candidateIdx >= slotCount) continue;
-
-        int2 origin = sps_cell_origin_from_index(candidateIdx);
-        if (!sps_cell_check_magic(gridTex, uint2(origin))) continue;
-
-        SpsCell cell = sps_get_cell(gridTex, candidateIdx);
-        uint product = cell.read_uint(SPS_HEADER_PRODUCT_INDEX);
-        if (product != SPS_PRODUCT_SOCKET) continue;
-
-        uint cellPlayerId = cell.read_uint(SPS_HEADER_PLAYER_ID_INDEX);
-        if (cellPlayerId == myPlayerId) {
-            uint cellId = cell.read_uint(SPS_HEADER_UNIQUE_ID_INDEX);
-            if (cellId == myUniqueId) {
-                foundCell = cell;
-                return candidateIdx;
-            }
-        }
-
-        if (sps_resolver_tag_match(cell, cellPlayerId)) {
-            foundCell = cell;
-            return candidateIdx;
-        }
+    // (1) Direct same-id lookup across the plug's own replica slots.
+    uint ownSeed = sps_hash_id(myUniqueId, myPlayerId);
+    [unroll]
+    for (uint r = 0u; r < SPS_CELL_REPLICA_COUNT; r++) {
+        int idx = (int)sps_hashed_screen_slot_index_from_id(ownSeed, r);
+        if (idx < 0 || idx >= slotCount) continue;
+        SpsCell cell = sps_get_cell(gridTex, idx);
+        if (!sps_cell_check_magic(cell)) continue;
+        if (cell.read_uint(SPS_HEADER_PRODUCT_INDEX) != SPS_PRODUCT_SOCKET) continue;
+        if (sps_cell_header_player_id(cell) != myPlayerId) continue;
+        if (sps_cell_header_unique_id(cell) == myUniqueId) return idx;
     }
 
-    foundCell = sps_get_cell(gridTex, 0);
-    return -1;
+    // (2) Dictionary-guided tag scan: walk slots in the dictionary groups this
+    // plug occupies, looking for sockets whose tags match our rules.
+    uint groupCount = min((uint)SPS_CELL_DICTIONARY_GROUP_COUNT,
+        (slotCount + (int)SPS_CELL_DICTIONARY_GROUP_SIZE - 1) / (int)SPS_CELL_DICTIONARY_GROUP_SIZE);
+    int bestIndex = -1;
+    bool foundAny = false;
+
+    for (uint slot = 0u; slot < (uint)slotCount; slot++) {
+        uint group = slot / SPS_CELL_DICTIONARY_GROUP_SIZE;
+        if (group >= groupCount) break;
+        if (!sps_resolver_dictionary_group_present(gridTex, group)) continue;
+
+        SpsCell cell = sps_get_cell(gridTex, (int)slot);
+        if (!sps_cell_check_magic(cell)) continue;
+        if (cell.read_uint(SPS_HEADER_PRODUCT_INDEX) != SPS_PRODUCT_SOCKET) continue;
+
+        uint cellPlayerId = sps_cell_header_player_id(cell);
+        if (!sps_resolver_tag_match(cell, cellPlayerId)) continue;
+        if (!sps_resolver_is_primary(gridTex, slot, sps_cell_header_unique_id(cell), cellPlayerId)) continue;
+
+        // First matching socket wins (VRCFury uses proximity scoring; first-hit
+        // keeps this simple and deterministic).
+        bestIndex = (int)slot;
+        foundAny = true;
+    }
+
+    return foundAny ? bestIndex : -1;
 }
 
+// Write one plug pixel. Entry data (the resolved socket S1) is passed in.
 bool sps_resolver_try_write_plug_pixel(
     uint pixelIndex,
-    SpsCell socketCell,
-    uint socketIndex,
+    float3 s1Pos,
+    float3 s1Fwd,
+    float3 s1Up,
+    float s1Scale,
+    uint s1Flags,
     uint plugUniqueId,
     uint plugPlayerId,
     out float4 rgba
 ) {
     rgba = 0;
 
+    // Slot header (plug identity + world basis) reuses the shared writer.
     if (sps_try_get_slot_header_rgba(
         pixelIndex,
         plugUniqueId,
         plugPlayerId,
         SPS_PRODUCT_PLUG,
-        sps_cell_header_world(socketCell),
-        sps_cell_header_forward(socketCell),
-        sps_cell_header_up(socketCell),
-        sps_cell_header_scale(socketCell),
+        s1Pos,
+        s1Fwd,
+        s1Up,
+        s1Scale,
         0,
         rgba
     )) return true;
 
-    uint payloadIndex;
-    if (!sps_cell_payload_index_from_pixel_index(pixelIndex, payloadIndex)) return false;
+    // Plug metadata row (R14): baked length/radius + metadata color.
+    if (pixelIndex == SPS_PLUG_META_R_INDEX) { rgba = sps_encode_float(_SPS_MetadataColor.r); return true; }
+    if (pixelIndex == SPS_PLUG_META_G_INDEX) { rgba = sps_encode_float(_SPS_MetadataColor.g); return true; }
+    if (pixelIndex == SPS_PLUG_META_B_INDEX) { rgba = sps_encode_float(_SPS_MetadataColor.b); return true; }
+    if (pixelIndex == SPS_PLUG_LENGTH_INDEX) { rgba = sps_encode_float(_SPS_BakedLength); return true; }
+    if (pixelIndex == SPS_PLUG_RADIUS_INDEX) { rgba = sps_encode_float(_SPS_BakedRadius); return true; }
 
-    if (payloadIndex == SPS_PLUG_PAYLOAD_SOCKET_ID) {
-        rgba = sps_encode_uint((uint)socketIndex);
+    // Radius samples row (R15): 16 samples from the baked set.
+    if (pixelIndex >= SPS_PLUG_RADIUS_SAMPLES_START
+        && pixelIndex < SPS_PLUG_RADIUS_SAMPLES_START + SPS_PLUG_RADIUS_SAMPLE_COUNT) {
+        uint sampleIndex = pixelIndex - SPS_PLUG_RADIUS_SAMPLES_START;
+        float4 samples[4] = {
+            _SPS_BakedRadiusSamples0, _SPS_BakedRadiusSamples1,
+            _SPS_BakedRadiusSamples2, _SPS_BakedRadiusSamples3
+        };
+        float4 packed = samples[sampleIndex / 4u];
+        float value = packed[sampleIndex % 4u];
+        rgba = sps_encode_float(value);
         return true;
     }
-    if (payloadIndex >= SPS_PLUG_PAYLOAD_CHAIN_START
-        && payloadIndex < SPS_PLUG_PAYLOAD_CHAIN_START + SPS_PLUG_PAYLOAD_CHAIN_MAX) {
-        uint chainOffset = payloadIndex - SPS_PLUG_PAYLOAD_CHAIN_START;
-        uint chainValue = chainOffset == 0u ? (uint)socketIndex : 0u;
-        rgba = sps_encode_uint(chainValue);
+
+    // Entry S1 (resolved socket target). Other entries stay zero.
+    uint entryBase = SPS_PLUG_ENTRY_BASE(0);
+    uint entryOffset = pixelIndex - entryBase;
+    if (entryOffset < SPS_PLUG_ENTRY_STRIDE) {
+        if (entryOffset < 3u) {
+            rgba = sps_encode_float(s1Pos[entryOffset]);
+            return true;
+        }
+        if (entryOffset < 6u) {
+            rgba = sps_encode_float(s1Fwd[entryOffset - 3u]);
+            return true;
+        }
+        if (entryOffset < 9u) {
+            rgba = sps_encode_float(s1Up[entryOffset - 6u]);
+            return true;
+        }
+        if (entryOffset == SPS_PLUG_ENTRY_FLAGS) {
+            rgba = sps_encode_uint(s1Flags);
+            return true;
+        }
+        if (entryOffset == SPS_PLUG_ENTRY_GUIDE) {
+            rgba = sps_encode_uint(0u);
+            return true;
+        }
+        // TIN / TOUT not authored yet -> zero.
+        rgba = sps_encode_float(0.0);
         return true;
     }
 
+    // Everything else (zero gaps, unused entries) -> zero.
     rgba = sps_encode_uint(0u);
     return true;
 }
@@ -176,17 +248,28 @@ float4 sps_resolver_frag(SpsTexture tex, g2f input) {
     if (uniqueId == 0u) uniqueId = sps_hash_world(sps_object_origin_world(), 0u);
     uint playerId = sps_player_id();
 
-    SpsCell socketCell;
-    int socketIndex = sps_resolver_find_socket(tex, uniqueId, playerId, 0, socketCell);
+    int socketIndex = sps_resolver_find_socket(tex, uniqueId, playerId);
 
+    // No socket found: emit an identity header so consumers see a disabled plug.
     if (socketIndex < 0) {
-        if (sps_try_get_slot_header_rgba(pixelIndex, uniqueId, playerId, 0, 0, 0, 0, 0, 0, rgba)) return rgba;
+        if (sps_try_get_slot_header_rgba(
+            pixelIndex, uniqueId, playerId, SPS_PRODUCT_PLUG,
+            0, 0, 0, 0, 0, rgba)) return rgba;
         rgba = sps_encode_uint(0u);
         return rgba;
     }
 
+    SpsCell socketCell = sps_get_cell(tex, socketIndex);
+    uint s1Flags = socketCell.read_uint(
+        sps_cell_pixel_index_from_payload_index(SPS_SOCKET_PAYLOAD_FLAGS));
+
     if (sps_resolver_try_write_plug_pixel(
-        pixelIndex, socketCell, (uint)socketIndex,
+        pixelIndex,
+        sps_cell_header_world(socketCell),
+        sps_cell_header_forward(socketCell),
+        sps_cell_header_up(socketCell),
+        sps_cell_header_scale(socketCell),
+        s1Flags,
         uniqueId, playerId, rgba
     )) return rgba;
 
