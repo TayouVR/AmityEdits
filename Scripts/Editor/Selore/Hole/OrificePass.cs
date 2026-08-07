@@ -116,14 +116,17 @@ namespace org.Tayou.AmityEdits {
             // written to NDC, so it never appears as visible geometry.
             spsObj.transform.localScale = Vector3.one;
 
-            // Trigger mesh: a single triangle, authored at world scale. The mesh
-            // bounds are large so the renderer is never frustum-culled; the cell
-            // geometry shader writes straight to NDC and ignores object position.
+            // Trigger mesh: a single tiny triangle. The cell geometry shader
+            // writes straight to NDC and ignores the mesh; the triangle only
+            // exists to trigger one geometry shader dispatch. Kept small with
+            // modest bounds (matching VRCFury's SpsTriggerMesh): a large source
+            // triangle or huge bounds can get the renderer culled / the draw
+            // clipped, so no cell pixels are ever rasterized.
             var mesh = new Mesh { name = "SpsTriggerMesh" };
             mesh.vertices = new Vector3[] {
-                new Vector3(-5, -5, 0),
-                new Vector3(5, -5, 0),
-                new Vector3(-5, 5, 0)
+                new Vector3(-0.005f, -0.005f, 0),
+                new Vector3(-0.005f, 0.005f, 0),
+                new Vector3(0.005f, 0.005f, 0)
             };
             mesh.uv = new Vector2[] {
                 new Vector2(0, 0),
@@ -131,7 +134,7 @@ namespace org.Tayou.AmityEdits {
                 new Vector2(0, 1)
             };
             mesh.triangles = new int[] { 0, 1, 2 };
-            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 100000f);
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 10f);
 
             var mf = spsObj.GetComponent<MeshFilter>();
             mf.sharedMesh = mesh;

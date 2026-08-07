@@ -112,12 +112,15 @@ namespace org.Tayou.AmityEdits {
             resolverObj.transform.localRotation = Quaternion.identity;
             resolverObj.transform.localScale = Vector3.one;
 
-            // Trigger mesh (single triangle) with large bounds so it is never culled.
+            // Trigger mesh (single tiny triangle). The geometry shader writes
+            // the cell straight to NDC and ignores the mesh; kept small with
+            // modest bounds (matching VRCFury's SpsTriggerMesh) so the renderer
+            // is not culled and the draw is not clipped.
             var mesh = new Mesh { name = "SpsPlugResolverMesh" };
             mesh.vertices = new Vector3[] {
-                new Vector3(-5, -5, 0),
-                new Vector3(5, -5, 0),
-                new Vector3(-5, 5, 0)
+                new Vector3(-0.005f, -0.005f, 0),
+                new Vector3(-0.005f, 0.005f, 0),
+                new Vector3(0.005f, 0.005f, 0)
             };
             mesh.uv = new Vector2[] {
                 new Vector2(0, 0),
@@ -125,7 +128,7 @@ namespace org.Tayou.AmityEdits {
                 new Vector2(0, 1)
             };
             mesh.triangles = new int[] { 0, 1, 2 };
-            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 100000f);
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 10f);
             var mf = resolverObj.GetComponent<MeshFilter>();
             mf.sharedMesh = mesh;
             AssetDatabase.AddObjectToAsset(mesh, ctx.AssetContainer);

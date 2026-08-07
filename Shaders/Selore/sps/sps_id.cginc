@@ -20,14 +20,7 @@ bool amity_sps_should_abort() {
         return unity_StereoEyeIndex != 0;
     #else
         return false;
-// Non-prefixed aliases for VRCFury compatibility
-#define sps_should_abort amity_sps_should_abort
-#define sps_player_id amity_sps_player_id
-#define sps_id amity_sps_id
-#define sps_hash_id amity_sps_hash_id
-#define sps_id_hash amity_sps_id_hash
-
-#endif
+    #endif
 }
 
 uint amity_sps_player_id() {
@@ -46,5 +39,12 @@ uint amity_sps_hash_id(uint id, uint playerId) {
 uint amity_sps_id_hash() {
     return amity_sps_hash_id(amity_sps_id(), amity_sps_player_id());
 }
+
+// Non-prefixed aliases for VRCFury compatibility
+#define sps_should_abort amity_sps_should_abort
+#define sps_player_id amity_sps_player_id
+#define sps_id amity_sps_id
+#define sps_hash_id amity_sps_hash_id
+#define sps_id_hash amity_sps_id_hash
 
 #endif
