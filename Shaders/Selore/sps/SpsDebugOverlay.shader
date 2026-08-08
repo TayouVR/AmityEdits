@@ -46,6 +46,7 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             #include "sps_cell_layout.cginc"
             #include "sps_types.cginc"
             #include "sps_utils.cginc"
+            #include "sps_resolver_types.cginc"
 
             SPS_INIT_TEX(_VFGridFinal)
 
@@ -300,6 +301,40 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 }
             }
 
+            void sps_debug_emit_plug_pill(
+                SpsCell cell,
+                float3 center,
+                float3 forward,
+                float3 right,
+                float3 up,
+                uint partIndex,
+                v2g source,
+                inout TriangleStream<g2f> stream
+            ) {
+                float plugLength = cell.read_float(SPS_PLUG_LENGTH_INDEX);
+                float plugRadius = cell.read_float(SPS_PLUG_RADIUS_INDEX);
+                if (plugLength <= 0 || plugRadius <= 0) return;
+
+                // Capsule with hemispherical caps: the cylindrical section spans
+                // between the two cap rims, distance (length - 2*radius) apart.
+                float capOffset = max(0.0, (plugLength - plugRadius * 2.0) * 0.5);
+                float3 capA = center + forward * capOffset;
+                float3 capB = center - forward * capOffset;
+
+                if (partIndex == 0u) {
+                    sps_debug_emit_ring(capA, right, up, plugRadius, _PlugColor, source, stream);
+                } else if (partIndex == 1u) {
+                    sps_debug_emit_ring(capB, right, up, plugRadius, _PlugColor, source, stream);
+                } else if (partIndex == 2u) {
+                    [unroll]
+                    for (int side = 0; side < 4; side++) {
+                        float angle = UNITY_TWO_PI * side / 4.0;
+                        float3 radial = right * cos(angle) + up * sin(angle);
+                        sps_debug_emit_line(capA + radial * plugRadius, capB + radial * plugRadius, _LineWidthPx, _PlugColor, source, stream);
+                    }
+                }
+            }
+
             [maxvertexcount(SPS_DEBUG_MAX_VERTICES)]
             void geom(point v2g input[1], inout TriangleStream<g2f> stream) {
                 UNITY_SETUP_INSTANCE_ID(input[0]);
@@ -335,12 +370,10 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 if (g_radiusFade <= 0.0) return;   // fully outside radius, skip whole gizmo
 
                 if (isPlug) {
-                    // Plugs draw a 3-axis cross on the arrows part only.
-                    if (partIndex == 2u && sps_to_bool(_ShowRing)) {
-                        float axisSize = 0.035 * _GizmoScale;
-                        sps_debug_emit_line(center - right * axisSize, center + right * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
-                        sps_debug_emit_line(center - up * axisSize, center + up * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
-                        sps_debug_emit_line(center - forward * axisSize, center + forward * axisSize, _LineWidthPx, _PlugColor, input[0], stream);
+                    // Plugs render a capped pill (length/width from the payload)
+                    // spread across the ring/arrow parts.
+                    if (partIndex < 3u && sps_to_bool(_ShowRing)) {
+                        sps_debug_emit_plug_pill(cell, center, forward, right, up, partIndex, input[0], stream);
                     }
                     return;
                 }
