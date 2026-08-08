@@ -252,21 +252,27 @@ float4 sps_resolver_frag(SpsTexture tex, g2f input) {
 
     int socketIndex = sps_resolver_find_socket(tex, uniqueId, playerId);
 
-    // No socket found: emit a zeroed payload so consumers see a disabled plug.
-    if (socketIndex < 0) {
-        rgba = sps_encode_uint(0u);
-        return rgba;
+    // When no socket resolves, still write the metadata payload (baked
+    // length/radius) so consumers can always read the plug's size; the S1
+    // entry stays zero, which sps_plug.cginc treats as "no target".
+    float3 s1Pos = 0;
+    float3 s1Fwd = 0;
+    float3 s1Up = 0;
+    uint s1Flags = 0;
+    if (socketIndex >= 0) {
+        SpsCell socketCell = sps_get_cell(tex, socketIndex);
+        s1Pos = sps_cell_header_world(socketCell);
+        s1Fwd = sps_cell_header_forward(socketCell);
+        s1Up = sps_cell_header_up(socketCell);
+        s1Flags = socketCell.read_uint(
+            sps_cell_pixel_index_from_payload_index(SPS_SOCKET_PAYLOAD_FLAGS));
     }
-
-    SpsCell socketCell = sps_get_cell(tex, socketIndex);
-    uint s1Flags = socketCell.read_uint(
-        sps_cell_pixel_index_from_payload_index(SPS_SOCKET_PAYLOAD_FLAGS));
 
     if (sps_resolver_try_write_plug_pixel(
         pixelIndex,
-        sps_cell_header_world(socketCell),
-        sps_cell_header_forward(socketCell),
-        sps_cell_header_up(socketCell),
+        s1Pos,
+        s1Fwd,
+        s1Up,
         s1Flags,
         rgba
     )) return rgba;
