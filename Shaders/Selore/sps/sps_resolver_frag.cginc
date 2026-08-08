@@ -156,33 +156,18 @@ int sps_resolver_find_socket(
     return foundAny ? bestIndex : -1;
 }
 
-// Write one plug pixel. Entry data (the resolved socket S1) is passed in.
+// Write one plug payload pixel. Entry data (the resolved socket S1) is passed
+// in; zeros mean "no target resolved". The slot header is written separately
+// in sps_resolver_frag and always carries the plug's own transform.
 bool sps_resolver_try_write_plug_pixel(
     uint pixelIndex,
     float3 s1Pos,
     float3 s1Fwd,
     float3 s1Up,
-    float s1Scale,
     uint s1Flags,
-    uint plugUniqueId,
-    uint plugPlayerId,
     out float4 rgba
 ) {
     rgba = 0;
-
-    // Slot header (plug identity + world basis) reuses the shared writer.
-    if (sps_try_get_slot_header_rgba(
-        pixelIndex,
-        plugUniqueId,
-        plugPlayerId,
-        SPS_PRODUCT_PLUG,
-        s1Pos,
-        s1Fwd,
-        s1Up,
-        s1Scale,
-        0,
-        rgba
-    )) return true;
 
     // Plug metadata row (R14): baked length/radius + metadata color.
     if (pixelIndex == SPS_PLUG_META_R_INDEX) { rgba = sps_encode_float(_SPS_MetadataColor.r); return true; }
@@ -248,13 +233,27 @@ float4 sps_resolver_frag(SpsTexture tex, g2f input) {
     if (uniqueId == 0u) uniqueId = sps_hash_world(sps_object_origin_world(), 0u);
     uint playerId = sps_player_id();
 
+    // The slot header always carries the plug's OWN transform (matching
+    // VRCFury). The resolved socket target lives in the S1 entry payload, not
+    // the header, so consumers reading the header see where the plug actually
+    // is (e.g. the debug overlay) rather than where its target is.
+    if (sps_try_get_slot_header_rgba(
+        pixelIndex,
+        uniqueId,
+        playerId,
+        SPS_PRODUCT_PLUG,
+        sps_object_origin_world(),
+        sps_object_forward_world(),
+        sps_object_up_world(),
+        sps_object_scale_world(),
+        0,
+        rgba
+    )) return rgba;
+
     int socketIndex = sps_resolver_find_socket(tex, uniqueId, playerId);
 
-    // No socket found: emit an identity header so consumers see a disabled plug.
+    // No socket found: emit a zeroed payload so consumers see a disabled plug.
     if (socketIndex < 0) {
-        if (sps_try_get_slot_header_rgba(
-            pixelIndex, uniqueId, playerId, SPS_PRODUCT_PLUG,
-            0, 0, 0, 0, 0, rgba)) return rgba;
         rgba = sps_encode_uint(0u);
         return rgba;
     }
@@ -268,9 +267,8 @@ float4 sps_resolver_frag(SpsTexture tex, g2f input) {
         sps_cell_header_world(socketCell),
         sps_cell_header_forward(socketCell),
         sps_cell_header_up(socketCell),
-        sps_cell_header_scale(socketCell),
         s1Flags,
-        uniqueId, playerId, rgba
+        rgba
     )) return rgba;
 
     return 0;
