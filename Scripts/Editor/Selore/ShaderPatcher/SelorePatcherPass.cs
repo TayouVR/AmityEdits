@@ -109,8 +109,28 @@ namespace org.Tayou.AmityEdits {
             var resolverObj = new GameObject("SPS Plug Resolver", typeof(MeshFilter), typeof(MeshRenderer));
             resolverObj.transform.SetParent(plug.transform, false);
             resolverObj.transform.localPosition = Vector3.zero;
-            resolverObj.transform.localRotation = Quaternion.identity;
             resolverObj.transform.localScale = Vector3.one;
+
+            // Determine the plug's length axis in the mesh's local space. The
+            // auto-detect reads the dominant mesh extent; the explicit
+            // overrideStartRotation / startRotation fields take precedence and
+            // define the "forward" (+Z) of the plug directly.
+            Vector3 axisOS = Vector3.forward;
+            if (plug.overrideStartRotation) {
+                axisOS = Quaternion.Euler(plug.startRotation) * Vector3.forward;
+            } else {
+                axisOS = ComputePlugLengthAxis(renderer);
+            }
+
+            // Align the resolver so its local +Z (the direction the gizmo /
+            // header forward is derived from) points along the plug length axis.
+            var worldDir = renderer.transform.TransformDirection(axisOS);
+            var worldUp = Mathf.Abs(Vector3.Dot(worldDir, Vector3.up)) > 0.99f
+                ? Vector3.forward
+                : Vector3.up;
+            var plugLocalDir = Quaternion.Inverse(plug.transform.rotation) * worldDir;
+            var plugLocalUp = Quaternion.Inverse(plug.transform.rotation) * worldUp;
+            resolverObj.transform.localRotation = Quaternion.LookRotation(plugLocalDir, plugLocalUp);
 
             // Trigger mesh (single tiny triangle). The geometry shader writes
             // the cell straight to NDC and ignores the mesh; kept small with
@@ -205,7 +225,11 @@ namespace org.Tayou.AmityEdits {
             }
 
             // Compute radius samples from the plug mesh
-            ComputeRadiusSamples(renderer, resolverMat);
+            ComputeRadiusSamples(renderer, resolverMat, axisOS);
+
+            Debug.Log($"[Selore] SPS plug '{plug.transform.GetHierarchyPath()}': " +
+                      $"axis={(plug.overrideStartRotation ? plug.startRotation.ToString("F2") : ("auto " + AxisName(axisOS)))} " +
+                      $"length={resolverMat.GetFloat("_SPS_BakedLength"):F4} radius={resolverMat.GetFloat("_SPS_BakedRadius"):F4}");
 
             var mr = resolverObj.GetComponent<MeshRenderer>();
             if (grabShader != null) {
@@ -239,10 +263,39 @@ namespace org.Tayou.AmityEdits {
             }
         }
 
-        // Compute radius samples from the plug mesh (75th percentile XY distance
-        // per Z bucket). SPS2 exposes 16 samples on the RAD row, packed into
-        // _SPS_BakedRadiusSamples0..3 (4 float4s).
-        private static void ComputeRadiusSamples(Renderer renderer, Material resolverMat) {
+        // Dominant local axis of the plug mesh (the direction the penetrator
+        // extends along). Falls back to +Z when the mesh is degenerate.
+        private static Vector3 ComputePlugLengthAxis(Renderer renderer) {
+            var mesh = renderer.GetMesh();
+            if (mesh == null) return Vector3.forward;
+
+            var bounds = mesh.bounds;
+            var size = bounds.size;
+            if (size == Vector3.zero) return Vector3.forward;
+
+            if (size.y >= size.x && size.y >= size.z) return Vector3.up;
+            if (size.z >= size.x) return Vector3.forward;
+            return Vector3.right;
+        }
+
+        private static string AxisName(Vector3 axis) {
+            if (Vector3.Dot(axis, Vector3.up) > 0.99f) return "+Y";
+            if (Vector3.Dot(axis, Vector3.down) > 0.99f) return "-Y";
+            if (Vector3.Dot(axis, Vector3.forward) > 0.99f) return "+Z";
+            if (Vector3.Dot(axis, Vector3.back) > 0.99f) return "-Z";
+            if (Vector3.Dot(axis, Vector3.right) > 0.99f) return "+X";
+            if (Vector3.Dot(axis, Vector3.left) > 0.99f) return "-X";
+            return axis.ToString("F2");
+        }
+
+        // Compute radius samples from the plug mesh (75th percentile radial
+        // distance per length bucket). SPS2 exposes 16 samples on the RAD row,
+        // packed into _SPS_BakedRadiusSamples0..3 (4 float4s). Everything is
+        // computed in world space: the length is the mesh extent along the plug
+        // axis, and the radius is measured from the axis running through the
+        // mesh's own centroid -- not the object origin -- so off-center meshes
+        // don't inflate the cross-section.
+        private static void ComputeRadiusSamples(Renderer renderer, Material resolverMat, Vector3 axisOS) {
             const int bucketCount = 16;
 
             var mesh = renderer.GetMesh();
@@ -251,15 +304,29 @@ namespace org.Tayou.AmityEdits {
             var vertices = mesh.vertices;
             if (vertices.Length == 0) return;
 
-            // Find bounding box along local Z
-            float minZ = float.MaxValue, maxZ = float.MinValue;
+            var forward = renderer.transform.TransformDirection(axisOS).normalized;
+
+            // World centroid of the mesh, used as the axis anchor for radius
+            // measurement (the object origin is usually off-center).
+            var centroidLocal = Vector3.zero;
             foreach (var v in vertices) {
-                if (v.z < minZ) minZ = v.z;
-                if (v.z > maxZ) maxZ = v.z;
+                centroidLocal += v;
+            }
+            centroidLocal /= vertices.Length;
+            var centroidWorld = renderer.transform.TransformPoint(centroidLocal);
+
+            // Project vertices onto the length axis; track min/max along it.
+            // Span along the axis is the same whatever the anchor, since the
+            // constant drops out of (max-min).
+            float minT = float.MaxValue, maxT = float.MinValue;
+            for (int i = 0; i < vertices.Length; i++) {
+                float t = Vector3.Dot(renderer.transform.TransformPoint(vertices[i]) - centroidWorld, forward);
+                if (t < minT) minT = t;
+                if (t > maxT) maxT = t;
             }
 
-            float zRange = maxZ - minZ;
-            if (zRange < 0.0001f) return;
+            float tRange = maxT - minT;
+            if (tRange < 0.0001f) return;
 
             // Allocate per-bucket lists
             var bucketDists = new System.Collections.Generic.List<float>[bucketCount];
@@ -267,15 +334,22 @@ namespace org.Tayou.AmityEdits {
                 bucketDists[i] = new System.Collections.Generic.List<float>();
             }
 
-            foreach (var v in vertices) {
-                int bucket = Mathf.FloorToInt((v.z - minZ) / zRange * (bucketCount - 1));
+            for (int i = 0; i < vertices.Length; i++) {
+                var world = renderer.transform.TransformPoint(vertices[i]);
+                // Distance along the axis, relative to the mesh centroid, for
+                // bucketing; radius measured perpendicular to the centroid axis.
+                float t = Vector3.Dot(world - centroidWorld, forward);
+                int bucket = Mathf.FloorToInt((t - minT) / tRange * (bucketCount - 1));
                 bucket = Mathf.Clamp(bucket, 0, bucketCount - 1);
-                float dist = Mathf.Sqrt(v.x * v.x + v.y * v.y);
+                var rel = world - centroidWorld;
+                float dist = Mathf.Sqrt(rel.sqrMagnitude - t * t);
                 bucketDists[bucket].Add(dist);
             }
 
             // Compute 75th percentile per bucket and pack into float4
             // 4 float4s = 16 floats (one per bucket)
+            float radiusSum = 0f;
+            int radiusCount = 0;
             for (int bucket = 0; bucket < bucketCount; bucket++) {
                 var dists = bucketDists[bucket];
                 if (dists.Count == 0) continue;
@@ -283,6 +357,8 @@ namespace org.Tayou.AmityEdits {
                 int p75Idx = Mathf.FloorToInt(dists.Count * 0.75f);
                 p75Idx = Mathf.Clamp(p75Idx, 0, dists.Count - 1);
                 float radius = dists[p75Idx];
+                radiusSum += radius;
+                radiusCount++;
 
                 int vecIdx = bucket / 4;
                 int compIdx = bucket % 4;
@@ -299,9 +375,11 @@ namespace org.Tayou.AmityEdits {
                 resolverMat.SetVector(propName, current);
             }
 
-            // Baked length and radius
-            resolverMat.SetFloat("_SPS_BakedLength", zRange);
-            resolverMat.SetFloat("_SPS_BakedRadius", zRange * 0.5f);
+            // Baked length and radius (average cross-section sample, not a
+            // crude length*0.5 approximation).
+            resolverMat.SetFloat("_SPS_BakedLength", tRange);
+            float avgRadius = radiusCount > 0 ? radiusSum / radiusCount : 0f;
+            resolverMat.SetFloat("_SPS_BakedRadius", avgRadius);
         }
 
         // Resolve the renderer to patch. When findRenderer is enabled, auto-discover

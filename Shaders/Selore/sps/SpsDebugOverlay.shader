@@ -315,22 +315,47 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 float plugRadius = cell.read_float(SPS_PLUG_RADIUS_INDEX);
                 if (plugLength <= 0 || plugRadius <= 0) return;
 
-                // Capsule with hemispherical caps: the cylindrical section spans
-                // between the two cap rims, distance (length - 2*radius) apart.
-                float capOffset = max(0.0, (plugLength - plugRadius * 2.0) * 0.5);
-                float3 capA = center + forward * capOffset;
-                float3 capB = center - forward * capOffset;
+                // Capsule anchored at the plug base (the cell origin), extending
+                // forward by `plugLength`. The base end is flat; only the far
+                // (tip) end gets a rounded dome of radius `plugRadius`.
+                float3 base = center;
+                float rimT = max(0.0, plugLength - plugRadius);
+                float3 rim = base + forward * rimT;
+                float3 pole = base + forward * plugLength;
 
                 if (partIndex == 0u) {
-                    sps_debug_emit_ring(capA, right, up, plugRadius, _PlugColor, source, stream);
+                    sps_debug_emit_ring(base, right, up, plugRadius, _PlugColor, source, stream);
                 } else if (partIndex == 1u) {
-                    sps_debug_emit_ring(capB, right, up, plugRadius, _PlugColor, source, stream);
+                    sps_debug_emit_ring(rim, right, up, plugRadius, _PlugColor, source, stream);
                 } else if (partIndex == 2u) {
                     [unroll]
                     for (int side = 0; side < 4; side++) {
                         float angle = UNITY_TWO_PI * side / 4.0;
                         float3 radial = right * cos(angle) + up * sin(angle);
-                        sps_debug_emit_line(capA + radial * plugRadius, capB + radial * plugRadius, _LineWidthPx, _PlugColor, source, stream);
+                        sps_debug_emit_line(base + radial * plugRadius, rim + radial * plugRadius, _LineWidthPx, _PlugColor, source, stream);
+                    }
+                } else if (partIndex == 3u) {
+                    // Dome silhouette on the tip end. Two meridian arcs from the
+                    // rim to the pole (hemisphere of radius `plugRadius` whose
+                    // center sits plugRadius before the pole).
+                    for (int arc = 0; arc < 2; arc++) {
+                        float angle = UNITY_TWO_PI * arc / 4.0;
+                        float3 radial = right * cos(angle) + up * sin(angle);
+                        int segments = 8;
+                        for (int s = 0; s < segments; s++) {
+                            float tA = (float)s / segments;
+                            float tB = (float)(s + 1) / segments;
+                            // theta: 90deg at the rim -> 0deg at the pole.
+                            float thetaA = UNITY_TWO_PI * (1.0 - tA);
+                            float thetaB = UNITY_TWO_PI * (1.0 - tB);
+                            float3 a = rim
+                                + forward * (plugRadius * cos(thetaA))
+                                + radial * (plugRadius * sin(thetaA));
+                            float3 b = rim
+                                + forward * (plugRadius * cos(thetaB))
+                                + radial * (plugRadius * sin(thetaB));
+                            sps_debug_emit_line(a, b, _LineWidthPx, _PlugColor, source, stream);
+                        }
                     }
                 }
             }
@@ -370,9 +395,10 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 if (g_radiusFade <= 0.0) return;   // fully outside radius, skip whole gizmo
 
                 if (isPlug) {
-                    // Plugs render a capped pill (length/width from the payload)
-                    // spread across the ring/arrow parts.
-                    if (partIndex < 3u && sps_to_bool(_ShowRing)) {
+                    // Plugs render a capsule (length/radius from the payload)
+                    // anchored at the plug base: ring at base, ring at tip rim,
+                    // 4 side lines, dome arcs on the tip end.
+                    if (partIndex < 4u && sps_to_bool(_ShowRing)) {
                         sps_debug_emit_plug_pill(cell, center, forward, right, up, partIndex, input[0], stream);
                     }
                     return;
