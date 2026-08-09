@@ -75,6 +75,7 @@ public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
         Utils.AddOverrideRow(root, serializedObject, "overrideStartPosition", "startPosition", "Start Position");
         Utils.AddOverrideRow(root, serializedObject, "overrideStartRotation", "startRotation", "Start Rotation");
         Utils.AddOverrideRow(root, serializedObject, "overrideLength",         "length",        "Length");
+        Utils.AddOverrideRow(root, serializedObject, "overrideWidth",          "radius",        "Plug Radius");
 
         // --- Advanced / feature toggles ------------------------------------
         root.Add(Utils.Header("Properties (animatable)"));

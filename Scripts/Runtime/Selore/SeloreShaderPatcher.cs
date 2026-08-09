@@ -80,6 +80,11 @@ namespace org.Tayou.AmityEdits {
         public bool overrideLength;
         public float length = 0.2f;
 
+        public bool overrideWidth;
+        /** Plug radius (half-width) in world meters. Used to build the SPS
+         * plug marker when the mesh's baked cross-section isn't representative. */
+        public float radius = 0.02f;
+
         // ------------------------------------------------------------------
         // Patcher implementation details
         // ------------------------------------------------------------------

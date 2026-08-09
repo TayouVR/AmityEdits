@@ -226,10 +226,14 @@ namespace org.Tayou.AmityEdits {
 
             // Compute radius samples from the plug mesh
             ComputeRadiusSamples(renderer, resolverMat, axisOS);
+            if (plug.overrideWidth) {
+                resolverMat.SetFloat("_SPS_BakedRadius", plug.radius);
+            }
 
             Debug.Log($"[Selore] SPS plug '{plug.transform.GetHierarchyPath()}': " +
                       $"axis={(plug.overrideStartRotation ? plug.startRotation.ToString("F2") : ("auto " + AxisName(axisOS)))} " +
-                      $"length={resolverMat.GetFloat("_SPS_BakedLength"):F4} radius={resolverMat.GetFloat("_SPS_BakedRadius"):F4}");
+                      $"length={resolverMat.GetFloat("_SPS_BakedLength"):F4} " +
+                      $"radius={(plug.overrideWidth ? "[override] " : "[auto] ")}{resolverMat.GetFloat("_SPS_BakedRadius"):F4}");
 
             var mr = resolverObj.GetComponent<MeshRenderer>();
             if (grabShader != null) {
