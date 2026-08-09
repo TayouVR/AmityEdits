@@ -346,14 +346,14 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                             float tA = (float)s / segments;
                             float tB = (float)(s + 1) / segments;
                             // theta: 90deg at the rim -> 0deg at the pole.
-                            float thetaA = UNITY_TWO_PI * (1.0 - tA);
-                            float thetaB = UNITY_TWO_PI * (1.0 - tB);
+                            float thetaA = UNITY_PI * (1.0 - tA);
+                            float thetaB = UNITY_PI * (1.0 - tB);
                             float3 a = rim
-                                + forward * (plugRadius * cos(thetaA))
-                                + radial * (plugRadius * sin(thetaA));
+                                + forward * (plugRadius * sin(thetaA))
+                                + radial * (plugRadius * cos(thetaA));
                             float3 b = rim
-                                + forward * (plugRadius * cos(thetaB))
-                                + radial * (plugRadius * sin(thetaB));
+                                + forward * (plugRadius * sin(thetaB))
+                                + radial * (plugRadius * cos(thetaB));
                             sps_debug_emit_line(a, b, _LineWidthPx, _PlugColor, source, stream);
                         }
                     }
