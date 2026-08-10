@@ -117,6 +117,10 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 return cell.read_uint(sps_cell_pixel_index_from_payload_index(payloadIndex));
             }
 
+            // Cheap identity checks (1 texel each) are ordered before the
+            // 4-texel magic validation so mismatching cells bail after a single
+            // read. The corner-0 pre-filter rejects empty slots after one read
+            // too, before we pay for the full 4-corner magic check.
             bool sps_debug_cell_matches(
                 SpsTexture tex,
                 int slotIndex,
@@ -126,30 +130,34 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             ) {
                 if (slotIndex < 0 || slotIndex >= sps_socket_slot_count()) return false;
                 SpsCell candidate = sps_get_cell(tex, slotIndex);
-                if (!sps_cell_check_magic(candidate)) return false;
+                if (!amity_sps_cell_check_magic_corner0(candidate)) return false;
                 if (candidate.read_uint(SPS_HEADER_VENDOR_INDEX) != SPS_VENDOR_SPS) return false;
                 if (candidate.read_uint(SPS_HEADER_PRODUCT_INDEX) != product) return false;
-                if (sps_cell_header_unique_id(candidate) != uniqueId) return false;
-                return sps_cell_header_player_id(candidate) == playerId;
+                if (amity_sps_cell_header_unique_id(candidate) != uniqueId) return false;
+                if (amity_sps_cell_header_player_id(candidate) != playerId) return false;
+                // Only now, having passed the cheap identity gates, confirm the
+                // remaining magic corners to rule out a corner-0 hash collision.
+                return sps_cell_check_magic(candidate);
             }
 
+            // A slot is the "primary" replica if it is the lowest-indexed
+            // replica hash that lands on a valid matching cell. We scan replicas
+            // in order and stop at the first valid match: if that match is this
+            // slot, we are primary; otherwise an earlier replica owns the gizmo.
+            // A real break (dynamic loop, no [unroll]) lets the common
+            // no-collision case exit after a single iteration.
             bool sps_debug_is_primary_replica(SpsTexture tex, uint slotIndex, SpsCell cell) {
-                uint uniqueId = sps_cell_header_unique_id(cell);
-                uint playerId = sps_cell_header_player_id(cell);
+                uint uniqueId = amity_sps_cell_header_unique_id(cell);
+                uint playerId = amity_sps_cell_header_player_id(cell);
                 uint product = cell.read_uint(SPS_HEADER_PRODUCT_INDEX);
                 uint seed = sps_debug_hash_id(uniqueId, playerId);
-                bool isPrimary = false;
-                bool found = false;
 
-                [unroll]
                 for (uint replica = 0u; replica < SPS_CELL_REPLICA_COUNT; replica++) {
-                    if (found) continue;
                     int candidateIndex = (int)sps_hashed_screen_slot_index_from_id(seed, replica);
                     if (!sps_debug_cell_matches(tex, candidateIndex, uniqueId, playerId, product)) continue;
-                    isPrimary = candidateIndex == (int)slotIndex;
-                    found = true;
+                    return candidateIndex == (int)slotIndex;
                 }
-                return isPrimary;
+                return false;
             }
 
             bool sps_debug_find_socket(
@@ -160,11 +168,8 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
             ) {
                 worldPosition = float3(0, 0, 0);
                 uint seed = sps_debug_hash_id(uniqueId, playerId);
-                bool found = false;
 
-                [unroll]
                 for (uint replica = 0u; replica < SPS_CELL_REPLICA_COUNT; replica++) {
-                    if (found) continue;
                     int candidateIndex = (int)sps_hashed_screen_slot_index_from_id(seed, replica);
                     if (!sps_debug_cell_matches(
                         tex,
@@ -174,9 +179,9 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                         SPS_PRODUCT_SOCKET
                     )) continue;
                     worldPosition = sps_cell_header_world(sps_get_cell(tex, candidateIndex));
-                    found = true;
+                    return true;
                 }
-                return found;
+                return false;
             }
 
             float3 sps_debug_hash_color(uint hash) {
@@ -371,28 +376,40 @@ Shader "Hidden/Amity/SpsDebugOverlay" {
                 if (slotIndex >= (uint)sps_socket_slot_count()) return;
 
                 SpsCell cell = sps_get_cell(tex, (int)slotIndex);
-                if (!sps_cell_check_magic(cell)) return;
+                // Fast path: reject the (overwhelmingly common) empty slot after
+                // a single texel read before touching the rest of the header.
+                if (!amity_sps_cell_check_magic_corner0(cell)) return;
                 if (cell.read_uint(SPS_HEADER_VENDOR_INDEX) != SPS_VENDOR_SPS) return;
 
                 uint product = cell.read_uint(SPS_HEADER_PRODUCT_INDEX);
                 bool isSocket = product == SPS_PRODUCT_SOCKET;
                 bool isPlug = product == SPS_PRODUCT_PLUG;
-                if ((!isSocket || !sps_to_bool(_ShowSockets)) && (!isPlug || !sps_to_bool(_ShowPlugs))) return;
-                if (!sps_debug_is_primary_replica(tex, slotIndex, cell)) return;
+                if ((!isSocket || !amity_sps_to_bool(_ShowSockets)) && (!isPlug || !amity_sps_to_bool(_ShowPlugs))) return;
 
-                float3 center = sps_cell_header_world(cell);
-                float3 forward = sps_normalize(sps_cell_header_forward(cell));
-                float3 sourceUp = sps_normalize(sps_cell_header_up(cell));
-                float3 right = sps_normalize(cross(sourceUp, forward));
-                float3 up = sps_normalize(cross(forward, right));
-
-                // remove gizmos when out of range
+                // Radius cull first: it only needs the world position (3 reads)
+                // and rejects out-of-range gizmos before we pay for the full
+                // 4-corner magic validation and the expensive primary-replica
+                // probe (~5 hash probes). The corner-0 pre-filter above already
+                // guarantees this slot holds a plausible cell, so the world read
+                // is safe.
+                float3 center = amity_sps_cell_header_world(cell);
                 float3 objectWorldPos = unity_ObjectToWorld._m03_m13_m23;
                 float distToObject = distance(center, objectWorldPos);
                 g_radiusFade = (_Radius == 0.0) 
                     ? 1.0 
                     : smoothstep(0, max(_FadeWidth, 0.0001), _Radius - distToObject);
                 if (g_radiusFade <= 0.0) return;   // fully outside radius, skip whole gizmo
+
+                // Confirm the remaining magic corners now that the cheap product/
+                // visibility/radius gates have passed (guards against a corner-0
+                // hash collision on a slot we're about to emit geometry for).
+                if (!amity_sps_cell_check_magic(cell)) return;
+                if (!sps_debug_is_primary_replica(tex, slotIndex, cell)) return;
+
+                float3 forward = sps_normalize(sps_cell_header_forward(cell));
+                float3 sourceUp = sps_normalize(sps_cell_header_up(cell));
+                float3 right = sps_normalize(cross(sourceUp, forward));
+                float3 up = sps_normalize(cross(forward, right));
 
                 if (isPlug) {
                     // Plugs render a capsule (length/radius from the payload)

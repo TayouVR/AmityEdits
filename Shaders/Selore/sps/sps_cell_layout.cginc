@@ -260,6 +260,18 @@ inline bool amity_sps_cell_check_magic(AmitySpsCell cell) {
     return amity_sps_cell_check_magic(cell.raw, cell.offset);
 }
 
+// Cheap corner-0-only pre-filter for the "empty slot" path. Reads a single
+// texel and bails, letting the common empty-slot case skip straight past the
+// full 4-corner validation. Callers that need certainty must still follow up
+// with amity_sps_cell_check_magic.
+inline bool amity_sps_cell_check_magic_corner0(AmitySpsTexture tex, uint2 cellOffset) {
+    return !any(AMITY_SPS_READ_TEX(tex, cellOffset + uint2(0, 0)) != AMITY_SPS_CELL_MAGIC_0);
+}
+
+inline bool amity_sps_cell_check_magic_corner0(AmitySpsCell cell) {
+    return amity_sps_cell_check_magic_corner0(cell.raw, cell.offset);
+}
+
 // Non-prefixed aliases for VRCFury compatibility
 #define SPS_SOCKET_MAX_SLOTS AMITY_SPS_SOCKET_MAX_SLOTS
 #define SPS_CELL_WIDTH AMITY_SPS_CELL_WIDTH
