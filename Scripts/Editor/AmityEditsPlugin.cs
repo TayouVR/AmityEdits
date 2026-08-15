@@ -82,10 +82,13 @@ namespace org.Tayou.AmityEdits {
             sequence = InPhase(BuildPhase.Transforming);
             // Do Transforming Operations here
             sequence.Run(new ReorderMenusPass());
-            sequence.Run(new SpsGridDebugPass());
             
             sequence = InPhase(BuildPhase.Optimizing);
             // Do Optimizations here
+            // SpsGridDebugPass must run in Optimizing: VRCFury runs as a separate
+            // VRC SDK preprocessor callback between NDMF's Transforming and
+            // Optimizing hooks, so repathing has to happen after it.
+            sequence.Run(new SpsGridDebugPass());
         }
     }
 }

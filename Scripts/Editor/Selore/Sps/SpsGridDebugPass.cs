@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
+using System.Collections.Generic;
 using nadena.dev.ndmf;
+using nadena.dev.ndmf.animator;
 using UnityEditor;
 using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
+    [DependsOnContext(typeof(AnimatorServicesContext))]
     public class SpsGridDebugPass : Pass<SpsGridDebugPass> {
         public override string QualifiedName => "org.Tayou.AmityEdits.SpsGridDebug";
         public override string DisplayName => "SPS Grid Debug Overlay";
@@ -51,6 +54,7 @@ namespace org.Tayou.AmityEdits {
             SpsGridDebugRendererBuilder.ApplyMaterialProperties(mat, debug);
 
             // Prevent property strippers from removing our properties
+            // I don't think we need this, but I'll need to test that
             if (mat.shader != null) {
                 var count = ShaderUtil.GetPropertyCount(mat.shader);
                 for (var i = 0; i < count; i++) {
@@ -61,6 +65,91 @@ namespace org.Tayou.AmityEdits {
 
             var mr = obj.AddComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
+
+            RepathAnimations(ctx, mr, debug);
+        }
+
+        private static void RepathAnimations(BuildContext ctx, MeshRenderer mr, SpsGridDebug debug) {
+            var index = ctx.Extension<AnimatorServicesContext>().AnimationIndex;
+            var root = ctx.AvatarRootTransform;
+
+            var sourcePath = AnimationUtility.CalculateTransformPath(debug.transform, root);
+            var targetPath = AnimationUtility.CalculateTransformPath(mr.transform, root);
+
+            foreach (var clip in index.GetClipsForObjectPath(sourcePath)) {
+                foreach (var binding in clip.GetFloatCurveBindings()) {
+                    if (binding.type != typeof(SpsGridDebug)) continue;
+
+                    var (prop, channel) = MapProperty(binding.propertyName);
+                    if (prop == null) continue;
+
+                    var curve = clip.GetFloatCurve(binding);
+                    if (curve == null) continue;
+
+                    var newBinding = EditorCurveBinding.FloatCurve(
+                        targetPath,
+                        typeof(Renderer),
+                        $"material.{prop}{channel}"
+                    );
+
+                    if (prop == "_ZTest") {
+                        curve = RemapZTestCurve(curve);
+                    }
+
+                    clip.SetFloatCurve(newBinding, curve);
+                    clip.SetFloatCurve(binding, null);
+                }
+            }
+        }
+
+        private static (string prop, string channel) MapProperty(string propertyName) {
+            var field = propertyName;
+            var channel = "";
+
+            if (field.Length > 2) {
+                var suffix = field.Substring(field.Length - 2);
+                if (suffix == ".r" || suffix == ".g" || suffix == ".b" || suffix == ".a") {
+                    channel = suffix;
+                    field = field.Substring(0, field.Length - 2);
+                }
+            }
+
+            if (FieldToProp.TryGetValue(field, out var prop)) {
+                return (prop, channel);
+            }
+
+            return (null, null);
+        }
+
+        private static readonly Dictionary<string, string> FieldToProp = new Dictionary<string, string> {
+            { "showSockets", "_ShowSockets" },
+            { "showPlugs", "_ShowPlugs" },
+            { "showRing", "_ShowRing" },
+            { "showArrow", "_ShowArrow" },
+            { "showTags", "_ShowTags" },
+            { "showChainLinks", "_ShowChain" },
+            { "gizmoScale", "_GizmoScale" },
+            { "lineWidthPixels", "_LineWidthPx" },
+            { "depthTested", "_ZTest" },
+            { "radius", "_Radius" },
+            { "fadeWidth", "_FadeWidth" },
+            { "holeColor", "_HoleColor" },
+            { "ringColor", "_RingColor" },
+            { "reversibleColor", "_ReversibleColor" },
+            { "plugColor", "_PlugColor" },
+            { "chainColor", "_ChainColor" }
+        };
+
+        private static AnimationCurve RemapZTestCurve(AnimationCurve curve) {
+            var keys = curve.keys;
+            var newKeys = new Keyframe[keys.Length];
+            for (var i = 0; i < keys.Length; i++) {
+                newKeys[i] = keys[i];
+                newKeys[i].value = keys[i].value > 0.5f
+                    ? (float)UnityEngine.Rendering.CompareFunction.LessEqual
+                    : (float)UnityEngine.Rendering.CompareFunction.Always;
+            }
+            return new AnimationCurve(newKeys);
         }
     }
 }
