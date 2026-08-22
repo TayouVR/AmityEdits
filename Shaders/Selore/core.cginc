@@ -40,9 +40,15 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         float socketScale;
         if (selore_sps_read_plug(Selore_UseSps, gridTex, uniqueId, playerId,
             socketWorld, socketForward, socketUp, socketScale)) {
-            o1.position = socketWorld;
-            o1.normal = socketForward;
-            o1.normalLightPosition = 0;
+            // The SPS grid is a world-space protocol (plug and socket can live on
+            // different avatars). Everything downstream in this file — the spline
+            // construction, spine projection, arc lengths — runs in this renderer's
+            // object space, just like the legacy-lights path converts light
+            // positions to object space. So localize the socket data here once,
+            // rather than mixing coordinate systems through the bezier solve.
+            o1.position = sps_toLocal(socketWorld);
+            o1.normal = sps_direction_toLocal(socketForward);
+            o1.normalLightPosition = sps_toLocal(socketWorld + socketForward);
             o1.type = SELORE_LIGHT_ROLE_HOLE;
             o1.isValid = true;
             o2 = o1;
