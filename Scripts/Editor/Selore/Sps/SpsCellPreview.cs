@@ -440,11 +440,11 @@ namespace org.Tayou.AmityEdits.EditorSeloreSps {
             uint flags = 0;
             if (hole.role == SeloreRole.Hole) {
                 flags |= SOCKET_FLAG_HOLE;
-            } else if (hole.role == SeloreRole.Ring) {
-                flags |= SOCKET_FLAG_HOLE | SOCKET_FLAG_DOUBLE_SIDED;
             } else if (hole.role == SeloreRole.ReversibleRing) {
                 flags |= SOCKET_FLAG_DOUBLE_SIDED;
             }
+            // SeloreRole.Ring (one-way) intentionally sets no flags: VRCFury
+            // encodes one-way rings as the absence of both HOLE and DOUBLE_SIDED.
 
             // Generate a stable ID from the object's world position hash (mirrors shader fallback)
             Vector3 wPos = root.position;

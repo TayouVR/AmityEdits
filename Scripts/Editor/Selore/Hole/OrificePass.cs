@@ -183,12 +183,15 @@ namespace org.Tayou.AmityEdits {
                 ? new[] { mat, grabMat }
                 : new[] { mat };
 
-            // Compute flags from role (mirrors the preview logic)
+            // Compute flags from role (mirrors the preview logic).
+            // Encoding matches VRCFury's SpsConfigurer.AddSocket:
+            //   Hole           -> HOLE
+            //   Ring (one-way) -> neither flag (VRCFury encodes one-way as the
+            //                     absence of both bits)
+            //   ReversibleRing -> DOUBLE_SIDED (two-way)
             uint flags = 0;
             if (seloreHole.role == SeloreRole.Hole) {
                 flags |= SpsCellPreview.SOCKET_FLAG_HOLE;
-            } else if (seloreHole.role == SeloreRole.Ring) {
-                flags |= SpsCellPreview.SOCKET_FLAG_HOLE | SpsCellPreview.SOCKET_FLAG_DOUBLE_SIDED;
             } else if (seloreHole.role == SeloreRole.ReversibleRing) {
                 flags |= SpsCellPreview.SOCKET_FLAG_DOUBLE_SIDED;
             }

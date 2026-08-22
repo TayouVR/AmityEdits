@@ -7,6 +7,7 @@
 #include "sps_cell_layout.cginc"
 #include "sps_id.cginc"
 #include "sps_resolver_types.cginc"
+#include "sps_types.cginc"
 
 // Read the plug cell's primary target (entry S1) for deformation. Returns false
 // when SPS is off or no matching plug cell / target is present.
@@ -18,12 +19,14 @@ bool selore_sps_read_plug(
     out float3 outWorld,
     out float3 outForward,
     out float3 outUp,
-    out float outScale
+    out float outScale,
+    out uint outFlags
 ) {
     outWorld = 0;
     outForward = 0;
     outUp = 0;
     outScale = 1;
+    outFlags = 0u;
 
     if (!sps_to_bool(useSps)) return false;
 
@@ -54,6 +57,7 @@ bool selore_sps_read_plug(
         outForward = targetFwd;
         outUp = targetUp;
         outScale = sps_cell_header_scale(cell);
+        outFlags = targetFlags;
         return true;
     }
 

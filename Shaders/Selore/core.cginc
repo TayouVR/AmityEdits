@@ -38,8 +38,9 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
 
         float3 socketWorld, socketForward, socketUp;
         float socketScale;
+        uint socketFlags;
         if (selore_sps_read_plug(Selore_UseSps, gridTex, uniqueId, playerId,
-            socketWorld, socketForward, socketUp, socketScale)) {
+            socketWorld, socketForward, socketUp, socketScale, socketFlags)) {
             // The SPS grid is a world-space protocol (plug and socket can live on
             // different avatars). Everything downstream in this file — the spline
             // construction, spine projection, arc lengths — runs in this renderer's
@@ -49,7 +50,21 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
             o1.position = sps_toLocal(socketWorld);
             o1.normal = sps_direction_toLocal(socketForward);
             o1.normalLightPosition = sps_toLocal(socketWorld + socketForward);
-            o1.type = SELORE_LIGHT_ROLE_HOLE;
+            // Map the socket's SPS flags to a Selore orifice role, mirroring
+            // VRCFury's SPS2 encoding (SpsConfigurer.AddSocket):
+            //   HOLE set            -> hole (mesh interior gets hidden/shrunk)
+            //   DOUBLE_SIDED set    -> two-way ring
+            //   neither             -> one-way ring (VRCFury encodes one-way as
+            //                          the absence of both bits; guided-path
+            //                          waypoints are authored this way)
+            // Only HOLE changes deform behavior, matching VRCFury's deform.
+            if (sps_has_flag(socketFlags, SPS_SOCKET_FLAG_HOLE)) {
+                o1.type = SELORE_LIGHT_ROLE_HOLE;
+            } else if (sps_has_flag(socketFlags, SPS_SOCKET_FLAG_DOUBLE_SIDED)) {
+                o1.type = SELORE_LIGHT_ROLE_RING_TWOWAY;
+            } else {
+                o1.type = SELORE_LIGHT_ROLE_RING_ONEWAY;
+            }
             o1.isValid = true;
             o2 = o1;
             o2.isValid = false;
