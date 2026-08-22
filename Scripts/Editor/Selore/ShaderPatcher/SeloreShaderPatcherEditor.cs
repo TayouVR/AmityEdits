@@ -92,6 +92,15 @@ public class SeloreShaderPatcherEditor : AmityBaseEditor<SeloreShaderPatcher> {
         advancedContainer.Add(new PropertyField(serializedObject.FindProperty("featureToyContactReceivers"), "Enable Toy Contact Receivers"));
         advancedContainer.Add(new PropertyField(serializedObject.FindProperty("keepImports"), "Keep #include directives in patched shader (debug)"));
 
+        advancedContainer.Add(Utils.Header("Spline Options"));
+        advancedContainer.Add(Utils.InfoBox(
+            "Controls when the deform engages. Defaults respond from any direction " +
+            "(180\u00b0 = unlimited) and only fade out beyond 1.6\u00d7 plug length."));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("maxDistanceFactor"), "Max Distance (x Length, 0 = unlimited)"));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("maxExitAngle"), "Max Exit Angle (\u00b0, 180 = unlimited)"));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("maxEntranceAngle"), "Max Entrance Angle (\u00b0, 180 = unlimited)"));
+        advancedContainer.Add(new PropertyField(serializedObject.FindProperty("hiltDistanceFactor"), "Hilt Distance (x Length, 0 = off)"));
+
         var advancedFoldout = new Foldout {
             text = "Advanced",
         };

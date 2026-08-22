@@ -38,6 +38,15 @@ Shader ".Amity/Selore Reference Impl" {
         [Header(Spline Controls)]
         Selore_BezierHandleSize ("Bezier Handle Size", Range(0.05,0.5)) = 0.15
 		[Toggle] Selore_SplineDebug ("Spline Debug", Float) = 0
+		// Gate deformation by how far away the socket is, as a multiple of plug length.
+		// 0 disables the distance check.
+		Selore_MaxDistanceFactor ("Max Distance (x Length, 0 = unlimited)", Float) = 1.6
+		// Cone half-angles (degrees) limiting when deformation engages. 180 = no limit.
+		Selore_MaxExitAngleDeg ("Max Exit Angle (deg, 180 = unlimited)", Range(0, 180)) = 180
+		Selore_MaxEntranceAngleDeg ("Max Entrance Angle (deg, 180 = unlimited)", Range(0, 180)) = 180
+		// When the plug tip is within this multiple of plug length of a hole socket,
+		// deformation force-engages (hilted). 0 disables.
+		Selore_HiltDistanceFactor ("Hilt Distance (x Length, 0 = off)", Float) = 0.5
 
     }
     SubShader {

@@ -45,6 +45,11 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
         private const string PropChannel = "Selore_Channel";
         private const string PropAllTheWayThrough = "Selore_AllTheWayThrough";
 
+        private const string PropMaxDistanceFactor = "Selore_MaxDistanceFactor";
+        private const string PropMaxExitAngle = "Selore_MaxExitAngleDeg";
+        private const string PropMaxEntranceAngle = "Selore_MaxEntranceAngleDeg";
+        private const string PropHiltDistanceFactor = "Selore_HiltDistanceFactor";
+
         private const string PropSpsEnabled = "Selore_UseSps";
         private const string PropSpsId = "Selore_SpsId";
         private const string PropSpsPlayerId = "Selore_SpsPlayerId";
@@ -91,6 +96,12 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
             SetFloatIfHas(m, PropLength, length);
             SetFloatIfHas(m, PropChannel, (float)(int)plug.channel);
             SetFloatIfHas(m, PropAllTheWayThrough, plug.allTheWayThrough ? 1f : 0f);
+
+            // Deform engagement gating (spline options)
+            SetFloatIfHas(m, PropMaxDistanceFactor, Mathf.Max(0f, plug.maxDistanceFactor));
+            SetFloatIfHas(m, PropMaxExitAngle, Mathf.Clamp(plug.maxExitAngle, 0f, 180f));
+            SetFloatIfHas(m, PropMaxEntranceAngle, Mathf.Clamp(plug.maxEntranceAngle, 0f, 180f));
+            SetFloatIfHas(m, PropHiltDistanceFactor, Mathf.Max(0f, plug.hiltDistanceFactor));
 
             // SPS properties
             if (plug.featureSpsEnabled) {

@@ -171,13 +171,51 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         
         float distanceAlongPenetrator = GetDistanceAlongLength(Selore_StartPosition, Selore_StartPosition + (startUp * Selore_PenetratorLength), vertexPos);
         
-        // Blend strength
-        // TODO: these lerps could probably all be one, but it was easier for me to do it like this. I want to consolidate them eventually.
-        float blend1 = clamp((len1 - Selore_PenetratorLength * 1.5f) * 5, 0, 1);
+        // ------------------------------------------------------------------
+        // Deform engagement gate.
+        // Replaces the old `blend1` formula, which accidentally disabled the
+        // deform entirely whenever the socket was farther than 1.5x plug
+        // length (the common case). Behavior is configurable via the spline
+        // options; by default only a generous distance cutoff applies and the
+        // plug responds from any angle (180 deg = full sphere).
+        // ------------------------------------------------------------------
+        float3 toOrifice = o1.position - Selore_StartPosition;
+        float orfDistance = length(toOrifice);
+        float3 toOrificeDir = toOrifice / max(orfDistance, 1e-5);
+        float applyLerp = 1;
+
+        // Exit angle: between the plug's straight spine and the socket
+        // direction. 180 deg limit = no limit.
+        if (Selore_MaxExitAngleDeg < 179.5) {
+            float exitAngle = degrees(acos(clamp(dot(startUp, toOrificeDir), -1, 1)));
+            if (exitAngle > Selore_MaxExitAngleDeg) applyLerp = 0;
+        }
+
+        // Entrance angle: between the socket's forward and the approach
+        // direction. Two-way rings accept entry from both sides, so skip the
+        // check there (same as VRCFury).
+        if (Selore_MaxEntranceAngleDeg < 179.5 && o1.type != SELORE_LIGHT_ROLE_RING_TWOWAY) {
+            float entranceAngle = degrees(acos(clamp(dot(o1.normal, -toOrificeDir), -1, 1)));
+            if (entranceAngle > Selore_MaxEntranceAngleDeg) applyLerp = 0;
+        }
+
+        // Hilt override: when fully seated in a hole, force engagement even if
+        // an angle check above rejected the deform (same idea as VRCFury).
+        if (Selore_HiltDistanceFactor > 0 && o1.type == SELORE_LIGHT_ROLE_HOLE) {
+            if (orfDistance <= Selore_PenetratorLength * Selore_HiltDistanceFactor) applyLerp = 1;
+        }
+
+        // Distance fade: ramp deform out over the last 25% of the allowed
+        // range so distant sockets ease off instead of popping. 0 = unlimited.
+        if (Selore_MaxDistanceFactor > 0) {
+            float maxDist = Selore_PenetratorLength * Selore_MaxDistanceFactor;
+            applyLerp = min(applyLerp, 1 - smoothstep(maxDist * 0.75, maxDist, orfDistance));
+        }
+
         float blend2 = distanceAlongPenetrator <= 0 ? 1 : 0;
 
-        deformedPosition = lerp(deformedPosition, vertexPos.xyz, blend1);
-        deformedNormal = lerp(deformedNormal, vertexNormal, blend1);
+        deformedPosition = lerp(deformedPosition, vertexPos.xyz, 1 - applyLerp);
+        deformedNormal = lerp(deformedNormal, vertexNormal, 1 - applyLerp);
         
         deformedPosition = lerp(deformedPosition, vertexPos.xyz, blend2);
         deformedNormal = lerp(deformedNormal, vertexNormal, blend2);

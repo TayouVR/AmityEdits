@@ -65,6 +65,26 @@ namespace org.Tayou.AmityEdits {
         public bool allTheWayThrough;
 
         // ------------------------------------------------------------------
+        // Deform engagement gating. Defaults respond from any direction
+        // (180 deg = full sphere) with only a generous distance cutoff; tighten
+        // the angles for direction-sensitive plugs. Written to the material by
+        // SeloreConfigurer.
+        // ------------------------------------------------------------------
+
+        /** Max socket distance as a multiple of plug length. 0 = unlimited. */
+        public float maxDistanceFactor = 1.6f;
+        /** Max angle (degrees) between the plug's straight spine and the socket
+         * direction. 180 = unlimited (respond from any exit direction). */
+        [Range(0f, 180f)] public float maxExitAngle = 180f;
+        /** Max angle (degrees) between the socket's forward and the plug's
+         * approach direction. 180 = unlimited. Ignored for two-way rings. */
+        [Range(0f, 180f)] public float maxEntranceAngle = 180f;
+        /** When the plug is within this multiple of plug length of a hole
+         * socket, deformation force-engages (hilted), overriding angle limits.
+         * 0 = disabled. */
+        public float hiltDistanceFactor = 0.5f;
+
+        // ------------------------------------------------------------------
         // Optional overrides for auto-computed transform values. When the
         // override flag is false the patcher pass computes the value from the
         // renderer and component transforms.

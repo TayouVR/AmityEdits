@@ -49,6 +49,12 @@ float Selore_AllTheWayThrough;
 float Selore_BezierHandleSize;
 float Selore_SplineDebug;
 
+// Deform gating (spline advanced options)
+float Selore_MaxDistanceFactor;
+float Selore_MaxExitAngleDeg;
+float Selore_MaxEntranceAngleDeg;
+float Selore_HiltDistanceFactor;
+
 float Selore_UseSps;
 float Selore_SpsId;
 float Selore_SpsPlayerId;
