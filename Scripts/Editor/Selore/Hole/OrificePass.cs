@@ -203,7 +203,16 @@ namespace org.Tayou.AmityEdits {
             mat.SetFloat("_SPS_SocketHole", (flags & SpsCellPreview.SOCKET_FLAG_HOLE) != 0 ? 1f : 0f);
             mat.SetFloat("_SPS_SocketDoubleSided", (flags & SpsCellPreview.SOCKET_FLAG_DOUBLE_SIDED) != 0 ? 1f : 0f);
             mat.SetFloat("_SPS_SocketRadiusOffset", 0f);
-            mat.SetFloat("_SPS_SocketNextId", 0f);
+            // Chain link (VRCFury "guided path"): id of the socket plugs should
+            // continue toward after passing through this one. 0 = no link.
+            uint nextId = 0;
+            if (seloreHole.spsNextSocket != null) {
+                Transform nextTarget = seloreHole.spsNextSocket.targetObject != null
+                    ? seloreHole.spsNextSocket.targetObject
+                    : seloreHole.spsNextSocket.transform;
+                nextId = SpsCellPreview.ComputeIdFromWorld(nextTarget.position);
+            }
+            mat.SetFloat("_SPS_SocketNextId", nextId);
             mat.SetFloat("_SPS_SocketUseTangentIn", 0f);
             mat.SetFloat("_SPS_SocketUseTangentOut", 0f);
 

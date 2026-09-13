@@ -54,6 +54,11 @@ namespace org.Tayou.AmityEdits {
         public List<string> spsTags = new List<string>();
         public bool spsUseSharedTag = true;
 
+        /// Optional next socket in an SPS chain (VRCFury "guided path"). When
+        /// set, plugs passing through this socket continue toward the linked
+        /// socket instead of stopping (up to 5 sockets per chain).
+        public SeloreHole spsNextSocket;
+
         void OnValidate() {
             if (spsTags == null) spsTags = new List<string>();
             while (spsTags.Count > 2) spsTags.RemoveAt(spsTags.Count - 1);
