@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using nadena.dev.ndmf;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -20,7 +21,9 @@ namespace org.Tayou.AmityEdits.EditorUtils {
                 avatarDescriptor.expressionParameters = ScriptableObject.CreateInstance<VRCExpressionParameters>();
                 avatarDescriptor.expressionParameters.name = "Parameters";
             } else {
-                avatarDescriptor.expressionParameters = DuplicateParametersAsset(avatarDescriptor.expressionParameters);
+                var originalParams = avatarDescriptor.expressionParameters;
+                avatarDescriptor.expressionParameters = DuplicateParametersAsset(originalParams);
+                ObjectRegistry.RegisterReplacedObject(originalParams, avatarDescriptor.expressionParameters);
             }
             vrcParametersOut = avatarDescriptor.expressionParameters;
 
@@ -29,7 +32,8 @@ namespace org.Tayou.AmityEdits.EditorUtils {
                 avatarDescriptor.expressionsMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
                 avatarDescriptor.expressionsMenu.name = "Root Menu";
             } else {
-                avatarDescriptor.expressionsMenu = DuplicateMenuAssetDeep(avatarDescriptor.expressionsMenu);
+                var originalMenu = avatarDescriptor.expressionsMenu;
+                avatarDescriptor.expressionsMenu = DuplicateMenuAssetDeep(originalMenu);
             }
             expressionsMenuOut = avatarDescriptor.expressionsMenu;
         }
@@ -60,6 +64,10 @@ namespace org.Tayou.AmityEdits.EditorUtils {
             var dup = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
             dup.name = original.name;
             if (original == null) return dup;
+
+            // Register the clone -> original mapping so downstream NDMF passes (e.g. Modular Avatar's
+            // menu installer) can resolve references to either asset consistently.
+            ObjectRegistry.RegisterReplacedObject(original, dup);
 
             if (original.controls != null) {
                 foreach (var c in original.controls) {

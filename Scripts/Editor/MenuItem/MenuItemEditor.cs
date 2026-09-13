@@ -20,6 +20,7 @@ using System;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
+using UnityEditorInternal;
 using UnityEngine.UIElements;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3A.Editor.Elements;

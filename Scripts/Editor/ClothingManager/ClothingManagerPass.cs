@@ -89,7 +89,7 @@ namespace org.Tayou.AmityEdits {
                     : clothingItemComponent.objectToToggle;
             }
             
-            EnsureDescriptorAssetsDuplicated(avatarDescriptor, out var vrcParameterList, out var rootMenu);
+            AmityMenuUtils.EnsureDescriptorAssetsDuplicated(avatarDescriptor, out var vrcParameterList, out var rootMenu);
             var clothingMenu = CreateClothingMenu(rootMenu, out var clothingItemMenu, out var outfitMenu);
 
             
@@ -514,85 +514,5 @@ namespace org.Tayou.AmityEdits {
             return path.ToString();
         }
         
-        private static void EnsureDescriptorAssetsDuplicated(
-            VRCAvatarDescriptor avatarDescriptor,
-            out VRCExpressionParameters vrcParametersOut,
-            out VRCExpressionsMenu expressionsMenuOut
-        ) {
-            // Parameters
-            if (avatarDescriptor.expressionParameters == null) {
-                avatarDescriptor.expressionParameters = ScriptableObject.CreateInstance<VRCExpressionParameters>();
-                avatarDescriptor.expressionParameters.name = "Parameters";
-            } else {
-                avatarDescriptor.expressionParameters = DuplicateParametersAsset(avatarDescriptor.expressionParameters);
-            }
-            vrcParametersOut = avatarDescriptor.expressionParameters;
-
-            // Menu (deep-copy the entire tree)
-            if (avatarDescriptor.expressionsMenu == null) {
-                avatarDescriptor.expressionsMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-                avatarDescriptor.expressionsMenu.name = "Root Menu";
-            } else {
-                avatarDescriptor.expressionsMenu = DuplicateMenuAssetDeep(avatarDescriptor.expressionsMenu);
-            }
-            expressionsMenuOut = avatarDescriptor.expressionsMenu;
-        }
-
-        private static VRCExpressionParameters DuplicateParametersAsset(VRCExpressionParameters original) {
-            var dup = ScriptableObject.CreateInstance<VRCExpressionParameters>();
-            dup.name = original.name;
-            if (original?.parameters != null) {
-                var copied = new List<VRCExpressionParameters.Parameter>(original.parameters.Length);
-                foreach (var p in original.parameters) {
-                    if (p == null) continue;
-                    copied.Add(new VRCExpressionParameters.Parameter {
-                        name = p.name,
-                        valueType = p.valueType,
-                        defaultValue = p.defaultValue,
-                        saved = p.saved,
-                        networkSynced = p.networkSynced
-                    });
-                }
-                dup.parameters = copied.ToArray();
-            } else {
-                dup.parameters = Array.Empty<VRCExpressionParameters.Parameter>();
-            }
-            return dup;
-        }
-
-        private static VRCExpressionsMenu DuplicateMenuAssetDeep(VRCExpressionsMenu original) {
-            var dup = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-            dup.name = original.name;
-            if (original == null) return dup;
-
-            if (original.controls != null) {
-                foreach (var c in original.controls) {
-                    if (c == null) continue;
-                    var nc = new VRCExpressionsMenu.Control {
-                        name = c.name,
-                        type = c.type,
-                        icon = c.icon,
-                        parameter = c.parameter != null ? new VRCExpressionsMenu.Control.Parameter { name = c.parameter.name } : null,
-                        value = c.value,
-                        style = c.style
-                    };
-                    // Copy sub-parameters (for 2-axis/radial) if present
-                    if (c.subParameters != null && c.subParameters.Length > 0) {
-                        var subParams = new VRCExpressionsMenu.Control.Parameter[c.subParameters.Length];
-                        for (int i = 0; i < c.subParameters.Length; i++) {
-                            var sp = c.subParameters[i];
-                            subParams[i] = sp != null ? new VRCExpressionsMenu.Control.Parameter { name = sp.name } : null;
-                        }
-                        nc.subParameters = subParams;
-                    }
-                    // Recurse for submenus
-                    if (c.type == VRCExpressionsMenu.Control.ControlType.SubMenu && c.subMenu != null) {
-                        nc.subMenu = DuplicateMenuAssetDeep(c.subMenu);
-                    }
-                    dup.controls.Add(nc);
-                }
-            }
-            return dup;
-        }
     }
 }
