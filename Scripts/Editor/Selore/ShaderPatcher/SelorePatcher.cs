@@ -15,7 +15,7 @@ namespace org.Tayou.AmityEdits {
     public static class SelorePatcher {
         // Bump this whenever the injected code changes so cached patched shaders
         // are invalidated and regenerated.
-        private const string HashBuster = "selore-3";
+        private const string HashBuster = "selore-4";
 
         public static void Patch(Material mat, BuildContext ctx, bool keepImports, ShaderPatchSelection selection, bool spsEnabled = false) {
             if (!mat.shader) return;

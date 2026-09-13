@@ -450,6 +450,15 @@ namespace org.Tayou.AmityEdits.EditorSeloreSps {
             Vector3 wPos = root.position;
             uint stableId = HashWorld(wPos, 0);
 
+            // Chain link preview: mirror CreateSpsMarker's NEXT_ID computation.
+            uint nextId = 0;
+            if (hole.spsNextSocket != null) {
+                Transform nextTarget = hole.spsNextSocket.targetObject != null
+                    ? hole.spsNextSocket.targetObject
+                    : hole.spsNextSocket.transform;
+                nextId = MaskId(HashWorld(nextTarget.position, 0));
+            }
+
             return new SeloreCellData {
                 vendor = VENDOR_SPS,
                 product = PRODUCT_SOCKET,
@@ -461,7 +470,7 @@ namespace org.Tayou.AmityEdits.EditorSeloreSps {
                 up = root.up,
                 scale = root.lossyScale.magnitude,
                 flags = flags,
-                nextId = 0,
+                nextId = nextId,
                 tags = BuildTagsFromHole(hole),
                 tangentIn = Vector3.zero,
                 tangentOut = Vector3.zero,

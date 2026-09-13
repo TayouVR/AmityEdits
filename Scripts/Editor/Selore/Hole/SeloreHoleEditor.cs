@@ -210,6 +210,7 @@ namespace org.Tayou.AmityEdits {
             // --- Socket Tags section ---
             var spsTagsProp = serializedObject.FindProperty("spsTags");
             var spsUseSharedTagProp = serializedObject.FindProperty("spsUseSharedTag");
+            var spsNextSocketProp = serializedObject.FindProperty("spsNextSocket");
 
             var tagsFoldout = new Foldout { text = "Socket Tags" };
             tagsFoldout.style.marginLeft = 4;
@@ -219,9 +220,12 @@ namespace org.Tayou.AmityEdits {
             tagsField.tooltip = "Up to 2 tags. These are hashed (FNV-1a, 24-bit) and written into the SPS cell payload.";
             var useSharedTagField = new PropertyField(spsUseSharedTagProp, "Use Shared Tag (1337)");
             useSharedTagField.tooltip = "Include the global SPS shared tag (1337) so generic VRCFury plugs can find this socket.";
+            var nextSocketField = new PropertyField(spsNextSocketProp, "Next Socket (Guided Path)");
+            nextSocketField.tooltip = "Optional next socket in an SPS chain: plugs passing through this socket continue toward the linked one (up to 5 per chain). Mirrors VRCFury's guided path.";
 
             tagsFoldout.Add(tagsField);
             tagsFoldout.Add(useSharedTagField);
+            tagsFoldout.Add(nextSocketField);
             root.Add(tagsFoldout);
 
 

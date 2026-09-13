@@ -51,7 +51,7 @@ bool sps_resolver_tag_match(
         bool found = false;
         [unroll]
         for (uint si = 0u; si < SPS_SOCKET_PAYLOAD_TAG_COUNT; si++) {
-            if (socketTags[si] == tagHash) { found = true; break; }
+            if (socketTags[si] == tagHash) found = true;
         }
         if (!found) return false;
 
@@ -69,7 +69,7 @@ bool sps_resolver_tag_match(
         bool found = false;
         [unroll]
         for (uint sj = 0u; sj < SPS_SOCKET_PAYLOAD_TAG_COUNT; sj++) {
-            if (socketTags[sj] == tagHash) { found = true; break; }
+            if (socketTags[sj] == tagHash) found = true;
         }
         if (!found) continue;
 

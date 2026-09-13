@@ -24,6 +24,13 @@
 #define SELORE_LIGHT_ROLE_RING_ONEWAY 3
 #define SELORE_LIGHT_ROLE_NORMAL 4
 
+// Maximum sockets in a deform chain (SPS2 multi-point pathing). Matches the
+// SPS plug cell layout (SPS_PLUG_MAX_ENTRIES). Redefine guard: the SPS
+// resolver types define the same value.
+#ifndef SPS_PLUG_MAX_ENTRIES
+#define SPS_PLUG_MAX_ENTRIES 5
+#endif
+
 struct Selore_LightInfo {
 	float3 position;
 	int role;

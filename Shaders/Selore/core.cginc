@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+// Upgrade NOTE: excluded shader from DX11 because it uses wrong array syntax (type[size] name)
+#pragma exclude_renderers d3d11
 /*
  *  Copyright (C) 2026 Tayou <git@tayou.org>
  *
@@ -21,13 +23,90 @@
 #include "globals.cginc"
 #include "lights.cginc"
 #include "spline.cginc"
+#include "spline_chain.cginc"
 #include "utils.cginc"
+
+#if defined(SELORE_SPS)
+// Read the full resolved socket chain (entries S1..S5) from the plug cell for
+// multi-point pathing, converting each entry to object space. Returns the
+// number of valid chain sockets (0 = no target resolved).
+uint selore_sps_read_chain(
+    float useSps,
+    SpsTexture gridTex,
+    uint uniqueId,
+    uint playerId,
+    out Selore_OrificeData outChain[SPS_PLUG_MAX_ENTRIES]
+) {
+    [unroll]
+    for (uint i = 0u; i < SPS_PLUG_MAX_ENTRIES; i++) {
+        outChain[i].isValid = false;
+        outChain[i].type = SELORE_LIGHT_ROLE_UNKNOWN;
+        outChain[i].position = float3(100, 100, 100);
+        outChain[i].normal = float3(0, 0, 1);
+        outChain[i].normalLightPosition = float3(0, 0, 0);
+    }
+
+    if (!sps_to_bool(useSps)) return 0u;
+
+    uint slotCount = sps_socket_slot_count();
+    uint slotSeed = sps_hash_id(uniqueId, playerId);
+
+    [unroll]
+    for (uint r = 0u; r < SPS_CELL_REPLICA_COUNT; r++) {
+        uint candidateIdx = sps_hashed_screen_slot_index_from_id(slotSeed, r);
+        if (candidateIdx >= slotCount) continue;
+
+        SpsCell cell = sps_get_cell(gridTex, (int)candidateIdx);
+        if (!sps_cell_check_magic(cell)) continue;
+        if (cell.read_uint(SPS_HEADER_PRODUCT_INDEX) != SPS_PRODUCT_PLUG) continue;
+        if (sps_cell_header_player_id(cell) != playerId) continue;
+        if (sps_cell_header_unique_id(cell) != uniqueId) continue;
+
+        uint count = 0u;
+        bool ended = false;
+        [unroll]
+        for (uint e = 0u; e < SPS_PLUG_MAX_ENTRIES; e++) {
+            float3 posW = cell.read_float3(SPS_PLUG_ENTRY_BASE(e) + SPS_PLUG_ENTRY_POS);
+            float3 fwdW = cell.read_float3(SPS_PLUG_ENTRY_BASE(e) + SPS_PLUG_ENTRY_FWD);
+            uint flags = cell.read_uint(SPS_PLUG_ENTRY_BASE(e) + SPS_PLUG_ENTRY_FLAGS);
+
+            // A zero position/forward marks the end of the resolved chain.
+            if (all(posW == 0.0) && all(fwdW == 0.0)) ended = true;
+            if (ended) continue;
+
+            // Localize to object space (the deform spline runs in object space).
+            outChain[e].position = sps_toLocal(posW);
+            outChain[e].normal = sps_direction_toLocal(fwdW);
+            outChain[e].normalLightPosition = sps_toLocal(posW + fwdW);
+            // Map SPS flags to a Selore role (mirrors VRCFury's encoding):
+            // HOLE -> hole, DOUBLE_SIDED -> two-way ring, neither -> one-way ring.
+            if (sps_has_flag(flags, SPS_SOCKET_FLAG_HOLE)) {
+                outChain[e].type = SELORE_LIGHT_ROLE_HOLE;
+            } else if (sps_has_flag(flags, SPS_SOCKET_FLAG_DOUBLE_SIDED)) {
+                outChain[e].type = SELORE_LIGHT_ROLE_RING_TWOWAY;
+            } else {
+                outChain[e].type = SELORE_LIGHT_ROLE_RING_ONEWAY;
+            }
+            outChain[e].isValid = true;
+            count++;
+        }
+        return count;
+    }
+
+    return 0u;
+}
+#endif
 
 void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float4 color) {
     float3 worldStartPosition = mul(unity_ObjectToWorld, float4(Selore_StartPosition, 1.0)).xyz;
     
     Selore_OrificeData o1;
     Selore_OrificeData o2;
+
+    // Unified socket chain driving the deform: up to SPS_PLUG_MAX_ENTRIES (5)
+    // sockets for SPS2 multi-point pathing, or 1-2 from the legacy lights.
+    Selore_OrificeData chain[SPS_PLUG_MAX_ENTRIES] = (Selore_OrificeData[SPS_PLUG_MAX_ENTRIES])0;
+    uint chainCount = 0u;
 
 #if defined(SELORE_SPS)
     {
@@ -36,38 +115,11 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         if (uniqueId == 0u) uniqueId = sps_hash_world(sps_object_origin_world(), 0u);
         uint playerId = sps_to_uint(Selore_SpsPlayerId);
 
-        float3 socketWorld, socketForward, socketUp;
-        float socketScale;
-        uint socketFlags;
-        if (selore_sps_read_plug(Selore_UseSps, gridTex, uniqueId, playerId,
-            socketWorld, socketForward, socketUp, socketScale, socketFlags)) {
-            // The SPS grid is a world-space protocol (plug and socket can live on
-            // different avatars). Everything downstream in this file — the spline
-            // construction, spine projection, arc lengths — runs in this renderer's
-            // object space, just like the legacy-lights path converts light
-            // positions to object space. So localize the socket data here once,
-            // rather than mixing coordinate systems through the bezier solve.
-            o1.position = sps_toLocal(socketWorld);
-            o1.normal = sps_direction_toLocal(socketForward);
-            o1.normalLightPosition = sps_toLocal(socketWorld + socketForward);
-            // Map the socket's SPS flags to a Selore orifice role, mirroring
-            // VRCFury's SPS2 encoding (SpsConfigurer.AddSocket):
-            //   HOLE set            -> hole (mesh interior gets hidden/shrunk)
-            //   DOUBLE_SIDED set    -> two-way ring
-            //   neither             -> one-way ring (VRCFury encodes one-way as
-            //                          the absence of both bits; guided-path
-            //                          waypoints are authored this way)
-            // Only HOLE changes deform behavior, matching VRCFury's deform.
-            if (sps_has_flag(socketFlags, SPS_SOCKET_FLAG_HOLE)) {
-                o1.type = SELORE_LIGHT_ROLE_HOLE;
-            } else if (sps_has_flag(socketFlags, SPS_SOCKET_FLAG_DOUBLE_SIDED)) {
-                o1.type = SELORE_LIGHT_ROLE_RING_TWOWAY;
-            } else {
-                o1.type = SELORE_LIGHT_ROLE_RING_ONEWAY;
-            }
-            o1.isValid = true;
-            o2 = o1;
-            o2.isValid = false;
+        chainCount = selore_sps_read_chain(Selore_UseSps, gridTex, uniqueId, playerId, chain);
+        if (chainCount > 0u) {
+            o1 = chain[0];
+            o2 = chainCount > 1u ? chain[1] : chain[0];
+            o2.isValid = chainCount > 1u;
         } else {
             o1.isValid = false;
             o2.isValid = false;
@@ -75,22 +127,29 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
     }
 #else
     GetOrifices(Selore_Channel, worldStartPosition, o1, o2);
+    if (o1.isValid) {
+        chain[0] = o1;
+        chainCount = 1u;
+        // Legacy "all the way through": append the second orifice as a chain hop.
+        if (o2.isValid && Selore_AllTheWayThrough > 0.5) {
+            chain[1] = o2;
+            chainCount = 2u;
+        }
+    }
 #endif
     
     if (o1.isValid) {
         float3x3 startMatrix = EulerToRotMatrix(Selore_StartRotation);
         float3 startUp = mul(startMatrix, float3(0,1,0)); 
 
-        float3 p0;
-        float3 p1;
-        float3 p2;
-        float3 p3;
-        float3 p4;
-        float3 p5;
-        float3 p6;
-        GetCurvePoints(p0, p1, p2, p3, p4, p5, p6, o1, o2);
-        
-        float goForTwoOrifices = min(Selore_AllTheWayThrough, o2.isValid);
+        // Build the N-segment spline through the chain (start + each socket).
+        float3 pts[SELORE_CHAIN_MAX_POINTS] = (float3[SELORE_CHAIN_MAX_POINTS])0;
+        [unroll]
+        for (uint initPt = 0u; initPt < SELORE_CHAIN_MAX_POINTS; initPt++) {
+            pts[initPt] = Selore_StartPosition;
+        }
+        SeloreBuildChainCurve(Selore_StartPosition, startUp, chain, chainCount, pts);
+        uint segmentCount = chainCount;
         
         // Calculate Distance along mesh spine (Meters)
         // Project vector (vertex - start) onto the StartUp vector
@@ -98,10 +157,8 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         float currentPosMeters = GetDistanceAlongPath(Selore_StartPosition, Selore_StartRotation, vertexPos);
 
         // Calculate Curve Lengths for logic switching
-        float len1 = CalculateArcLength(p0, p1, p2, p3, 1);
-        float len2 = CalculateArcLength(p3, p4, p5, p6, 1);
-        float totalLen = len1 + len2;
-        float lenToWorkWith = lerp(len1, totalLen, goForTwoOrifices);
+        float totalLen = SeloreChainTotalLength(pts, segmentCount);
+        float lenToWorkWith = totalLen;
         
         // Determine Spline Position and Tangent
         float3 splinePos;
@@ -112,39 +169,26 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         // CALCULATE SPLINE POSITION (Linear Extension vs Bezier)
         if (currentPosMeters > lenToWorkWith) {
             // --- LINEAR EXTENSION MODE ---
-            float3 endPos;
-            float3 endTangent;
-
-            if (goForTwoOrifices < 0.5) {
-                endPos = p3;
-                endTangent = normalize(CubicBezierTangent(p0, p1, p2, p3, 1.0));
-            } else {
-                endPos = p6;
-                endTangent = normalize(CubicBezierTangent(p3, p4, p5, p6, 1.0));
-            }
-            // TODO: both of these curve calculations can probably be replaced with just a reference to the o1 and o2 positions and normals.
+            uint lastSeg = segmentCount - 1u;
+            uint endBase = lastSeg * 3u;
+            float3 endPos = pts[endBase + 3u];
+            float3 endTangent = normalize(CubicBezierTangent(
+                pts[endBase], pts[endBase + 1u], pts[endBase + 2u], pts[endBase + 3u], 1.0));
             
             float excessDistance = currentPosMeters - lenToWorkWith;
             
             splinePos = endPos + endTangent * excessDistance;
             splineTangent = endTangent;
-            visualT = 2.5; // Debug color
+            visualT = (float)segmentCount + 0.5; // Debug color (past the last node)
         }
         else {
             // --- BEZIER MODE ---
             // Map distance to t based on segment lengths
-            float t;
-            if (currentPosMeters < len1) {
-                // Segment 1 (0 to 1)
-                t = currentPosMeters / max(0.001, len1); // Avoid div/0
-            } else {
-                // Segment 2 (1 to 2)
-                t = 1.0 + ((currentPosMeters - len1) / max(0.001, len2));
-            }
+            float t = SeloreChainDistanceToT(pts, segmentCount, currentPosMeters);
             visualT = t;
 
-            splinePos = GetSplinePosition(p0, p1, p2, p3, p4, p5, p6, t);
-            splineTangent = normalize(GetSplineTangent(p0, p1, p2, p3, p4, p5, p6, t));
+            SeloreChainEval(pts, segmentCount, t, splinePos, splineTangent);
+            splineTangent = normalize(splineTangent);
         }
 
         
@@ -226,16 +270,23 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         const float nan = 0.0 / 0.0;
         const float4 nanPosition = float4(nan, nan, nan, nan);
         
-        // hide section between point 1 and 2, as its inside body and supposed to not be visible.
-        if (o1.type == SELORE_LIGHT_ROLE_HOLE) {
+        // Hide the mesh section inside the terminal socket when that socket is
+        // a hole (the interior isn't supposed to be visible). visualT counts
+        // segments, so node k sits at t=k; the section past the last node is
+        // inside the terminal socket.
+        Selore_OrificeData terminal = chain[chainCount - 1u];
+        if (terminal.type == SELORE_LIGHT_ROLE_HOLE) {
+            float lastNodeT = (float)(chainCount - 1u);
             float shrink = 0.0;
             bool hide = false;
 
-            if (o2.isValid) {
-                float shrinkIn  = smoothstep(0.90, 1.10, visualT);
-                float shrinkOut = 1.0 - smoothstep(1.90, 2.10, visualT);
+            if (chainCount > 1u) {
+                // Interior section of the chain (between first and last node)
+                // hides when the terminal hole swallows the path.
+                float shrinkIn  = smoothstep(lastNodeT - 0.10, lastNodeT + 0.10, visualT);
+                float shrinkOut = 1.0;
                 shrink = saturate(shrinkIn * shrinkOut);
-                hide = visualT > 1.10 && visualT < 1.90;
+                hide = visualT > lastNodeT + 0.10;
             } else {
                 shrink = smoothstep(1.00, 1.15, visualT);
                 hide = visualT > 1.15;

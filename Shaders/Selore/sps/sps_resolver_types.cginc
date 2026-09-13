@@ -8,7 +8,9 @@
 // Rows 2-7 hold up to 5 entries (S1..S5). Entry 0 is the primary target.
 #define SPS_PLUG_ENTRY_STRIDE 17
 #define SPS_PLUG_ENTRY_START (AMITY_SPS_CELL_WIDTH * 1)
+#ifndef SPS_PLUG_MAX_ENTRIES
 #define SPS_PLUG_MAX_ENTRIES 5
+#endif
 
 // Offsets within a single entry.
 #define SPS_PLUG_ENTRY_POS 0
