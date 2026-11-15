@@ -103,7 +103,7 @@ namespace org.Tayou.AmityEdits {
                 return;
             }
 
-            Debug.Log($"[MenuDedup] FixMenu '{menu.name}' — {menu.controls.Count} controls, [{string.Join(',', menu.controls.Select(a => a.name))}");
+            Debug.Log($"[MenuDedup] FixMenu '{menu.name}' — {menu.controls.Count} controls, [{string.Join(',', menu.controls.Select(a => a.name))}]");
 
             // 1. Depth-first recursion into all submenus
             for (int i = 0; i < menu.controls.Count; i++) {
@@ -129,6 +129,28 @@ namespace org.Tayou.AmityEdits {
             }
             if (inlineCount > 0) {
                 Debug.Log($"[MenuDedup]  '{menu.name}' after inlining {inlineCount} page(s): {menu.controls.Count} controls");
+            }
+
+            // 2b. Relabel any remaining page buttons (e.g. NDMF-created "More" entries) to
+            // the configured name/icon so the user sees a consistent label.
+            for (int i = 0; i < menu.controls.Count; i++) {
+                var c = menu.controls[i];
+                if (!IsPageButton(c)) continue;
+
+                bool changed = false;
+                if (!string.IsNullOrEmpty(nextText) && c.name != nextText) {
+                    Debug.Log($"[MenuDedup]  '{menu.name}' renaming page btn[{i}] '{c.name}' → '{nextText}'");
+                    c.name = nextText;
+                    changed = true;
+                }
+                if (nextIcon != null && c.icon != nextIcon) {
+                    Debug.Log($"[MenuDedup]  '{menu.name}' updating page btn[{i}] icon '{c.icon?.name ?? "null"}' → '{nextIcon.name}'");
+                    c.icon = nextIcon;
+                    changed = true;
+                }
+                if (changed) {
+                    menu.controls[i] = c;
+                }
             }
 
             // 3. Standard pagination if the menu still exceeds 8 controls
@@ -167,7 +189,7 @@ namespace org.Tayou.AmityEdits {
                 Debug.Log($"[MenuDedup]    Moved {moved} controls to '{nextPage.name}' (now has {nextPage.controls.Count})");
 
                 menu.controls.Add(new VRCExpressionsMenu.Control {
-                    name = nextText ?? "Next",
+                    name = nextText,
                     icon = nextIcon,
                     type = VRCExpressionsMenu.Control.ControlType.SubMenu,
                     subMenu = nextPage
