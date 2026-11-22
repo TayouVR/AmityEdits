@@ -45,6 +45,23 @@ namespace org.Tayou.AmityEdits {
         private string[] _activePageButtonNames;
         private Texture2D _amityIcon;
         private Texture2D _vrcfIcon;
+        
+        private Texture2D _emptyIcon = AssetDatabase.LoadAssetByGUID<Texture2D>(new GUID("d665667a1edabae53b34d87dbafd27dd"));
+
+        public static bool Get() {
+            return EditorPrefs.GetBool("Amity.CenterTextOnMenusWithNoImage", true);
+        }
+
+        [UnityEditor.MenuItem("Tools/Amity/CenterTextOnMenusWithNoImage")]
+        private static void Click() {
+            EditorPrefs.SetBool("Amity.CenterTextOnMenusWithNoImage", !Get());
+        }
+
+        [UnityEditor.MenuItem("Tools/Amity/CenterTextOnMenusWithNoImage", true)]
+        private static bool Validate() {
+            UnityEditor.Menu.SetChecked("Tools/Amity/CenterTextOnMenusWithNoImage", Get());
+            return true;
+        }
 
         public bool OnPreprocessAvatar(GameObject avatarGameObject) {
             Debug.Log($"[MenuDedup] OnPreprocessAvatar called on '{avatarGameObject.name}'");
@@ -135,7 +152,15 @@ namespace org.Tayou.AmityEdits {
             // the configured name/icon so the user sees a consistent label.
             for (int i = 0; i < menu.controls.Count; i++) {
                 var c = menu.controls[i];
-                if (!IsPageButton(c)) continue;
+                if (!IsPageButton(c)) {
+                    if (!Get() || c.icon != null) continue;
+                    Debug.Log($"[MenuDedup]  centering '{menu.name}'");
+                    if (c.type != VRCExpressionsMenu.Control.ControlType.RadialPuppet) {
+                        c.name = $"<size=23><line-height=100%><voffset=6rem>{c.name}</voffset></line-height></size>";
+                    }
+                    c.icon = _emptyIcon;
+                    continue;
+                };
 
                 bool changed = false;
                 if (!string.IsNullOrEmpty(nextText) && c.name != nextText) {
