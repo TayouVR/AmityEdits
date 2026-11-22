@@ -76,7 +76,7 @@ uint selore_sps_read_chain(
 
             // Localize to object space (the deform spline runs in object space).
             outChain[e].position = sps_toLocal(posW);
-            outChain[e].normal = sps_direction_toLocal(fwdW);
+            outChain[e].normal = sps_normalize(sps_direction_toLocal(fwdW));
             outChain[e].normalLightPosition = sps_toLocal(posW + fwdW);
             // Map SPS flags to a Selore role (mirrors VRCFury's encoding):
             // HOLE -> hole, DOUBLE_SIDED -> two-way ring, neither -> one-way ring.
@@ -118,7 +118,12 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         chainCount = selore_sps_read_chain(Selore_UseSps, gridTex, uniqueId, playerId, chain);
         if (chainCount > 0u) {
             o1 = chain[0];
-            o2 = chainCount > 1u ? chain[1] : chain[0];
+            // Note: a ternary here fails on FXC ("type mismatch between
+            // conditional values") because Selore_OrificeData contains bools.
+            o2 = chain[0];
+            if (chainCount > 1u) {
+                o2 = chain[1];
+            }
             o2.isValid = chainCount > 1u;
         } else {
             o1.isValid = false;

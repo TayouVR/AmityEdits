@@ -47,6 +47,10 @@ Shader ".Amity/Selore Reference Impl" {
 		// When the plug tip is within this multiple of plug length of a hole socket,
 		// deformation force-engages (hilted). 0 disables.
 		Selore_HiltDistanceFactor ("Hilt Distance (x Length, 0 = off)", Float) = 0.5
+    	
+    	[Header(SPS2)]
+    	[Toggle] Selore_UseSps ("Use SPS2 Grabpass Data", Float) = 1
+		Selore_SpsId ("SPS ID", Float) = 0
 
     }
     SubShader {
@@ -67,8 +71,8 @@ Shader ".Amity/Selore Reference Impl" {
 	        
 	        #include "globals.cginc"
 
-	        // Use shader model 3.0 target, to get nicer looking lighting
-	        #pragma target 3.0
+	        #pragma multi_compile _ SELORE_SPS
+	        #pragma target 5.0
 
 	        sampler2D _MainTex;
             sampler2D _RampTex;
