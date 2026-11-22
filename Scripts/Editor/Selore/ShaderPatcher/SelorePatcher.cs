@@ -39,7 +39,8 @@ namespace org.Tayou.AmityEdits {
             var shader = mat.shader;
             var newShader = PatchUnsafe(shader, ctx, keepImports, selection, spsEnabled);
             mat.shader = newShader.shader;
-            AssetDatabase.AddObjectToAsset(newShader.shader, ctx.AssetContainer);
+            // should already be in a asset container (not in NDMFs)
+            //AssetDatabase.AddObjectToAsset(newShader.shader, ctx.AssetContainer);
         }
 
         public class PatchResult {
