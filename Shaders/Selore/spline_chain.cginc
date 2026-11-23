@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Upgrade NOTE: excluded shader from DX11 because it uses wrong array syntax (type[size] name)
-#pragma exclude_renderers d3d11
 /*
  *  Copyright (C) 2026 Tayou <git@tayou.org>
  *
@@ -44,7 +42,10 @@ void SeloreBuildChainCurve(
     uint socketCount,
     out float3 pts[SELORE_CHAIN_MAX_POINTS]
 ) {
-    pts = (float3[SELORE_CHAIN_MAX_POINTS])0;
+    [unroll]
+    for (uint initPt = 0u; initPt < SELORE_CHAIN_MAX_POINTS; initPt++) {
+        pts[initPt] = float3(0, 0, 0);
+    }
     // Node positions sit at p0, p3, p6, ... (every third control point).
     pts[0] = startPos;
     float handleLen = distance(startPos, chain[0].position) * Selore_BezierHandleSize;

@@ -49,8 +49,10 @@ Shader ".Amity/Selore Reference Impl" {
 		Selore_HiltDistanceFactor ("Hilt Distance (x Length, 0 = off)", Float) = 0.5
     	
     	[Header(SPS2)]
-    	[Toggle] Selore_UseSps ("Use SPS2 Grabpass Data", Float) = 1
+    	// Must name the keyword: the SPS branch in core.cginc is compiled out unless SELORE_SPS is on.
+    	[Toggle(SELORE_SPS)] Selore_UseSps ("Use SPS2 Grabpass Data", Float) = 1
 		Selore_SpsId ("SPS ID", Float) = 0
+		Selore_SpsPlayerId ("SPS Player ID", Float) = 0
 
     }
     SubShader {

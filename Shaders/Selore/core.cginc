@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Upgrade NOTE: excluded shader from DX11 because it uses wrong array syntax (type[size] name)
-#pragma exclude_renderers d3d11
 /*
  *  Copyright (C) 2026 Tayou <git@tayou.org>
  *
@@ -105,7 +103,17 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
 
     // Unified socket chain driving the deform: up to SPS_PLUG_MAX_ENTRIES (5)
     // sockets for SPS2 multi-point pathing, or 1-2 from the legacy lights.
-    Selore_OrificeData chain[SPS_PLUG_MAX_ENTRIES] = (Selore_OrificeData[SPS_PLUG_MAX_ENTRIES])0;
+    Selore_OrificeData chain[SPS_PLUG_MAX_ENTRIES];
+    {
+        // Explicit zero-init. Array-cast syntax like (T[N])0 makes Unity's shader
+        // importer "upgrade" the file with `#pragma exclude_renderers d3d11`,
+        // which silently kills the shader on DX11 (VRChat PC).
+        Selore_OrificeData emptyOrifice = (Selore_OrificeData)0;
+        [unroll]
+        for (uint initChain = 0u; initChain < SPS_PLUG_MAX_ENTRIES; initChain++) {
+            chain[initChain] = emptyOrifice;
+        }
+    }
     uint chainCount = 0u;
 
 #if defined(SELORE_SPS)
@@ -148,7 +156,7 @@ void SeloreDeform(inout float4 vertexPos, inout float3 vertexNormal, inout float
         float3 startUp = mul(startMatrix, float3(0,1,0)); 
 
         // Build the N-segment spline through the chain (start + each socket).
-        float3 pts[SELORE_CHAIN_MAX_POINTS] = (float3[SELORE_CHAIN_MAX_POINTS])0;
+        float3 pts[SELORE_CHAIN_MAX_POINTS];
         [unroll]
         for (uint initPt = 0u; initPt < SELORE_CHAIN_MAX_POINTS; initPt++) {
             pts[initPt] = Selore_StartPosition;

@@ -65,7 +65,12 @@ namespace org.Tayou.AmityEdits.ShaderPatcher {
             SeloreShaderPatcher plug,
             SeloreAutoParams auto
         ) {
+            // Lock Poiyomi first (VRCFury does the same): the patcher can only handle the
+            // locked `Hidden/Locked/...` shader, not the unlocked ThryEditor template.
+            SelorePatcher.LockPoiyomiIfNeeded(original);
+
             var m = new Material(original);
+            SelorePatcher.PreserveThryRenameSuffix(original, m);
             m.name = $"{m.name}_SelorePatched";
             AssetDatabase.AddObjectToAsset(m, ctx.AssetContainer);
 

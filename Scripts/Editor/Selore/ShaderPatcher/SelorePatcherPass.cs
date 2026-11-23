@@ -269,7 +269,7 @@ namespace org.Tayou.AmityEdits {
 
         // Dominant local axis of the plug mesh (the direction the penetrator
         // extends along). Falls back to +Z when the mesh is degenerate.
-        private static Vector3 ComputePlugLengthAxis(Renderer renderer) {
+        internal static Vector3 ComputePlugLengthAxis(Renderer renderer) {
             var mesh = renderer.GetMesh();
             if (mesh == null) return Vector3.forward;
 
@@ -282,7 +282,7 @@ namespace org.Tayou.AmityEdits {
             return Vector3.right;
         }
 
-        private static string AxisName(Vector3 axis) {
+        internal static string AxisName(Vector3 axis) {
             if (Vector3.Dot(axis, Vector3.up) > 0.99f) return "+Y";
             if (Vector3.Dot(axis, Vector3.down) > 0.99f) return "-Y";
             if (Vector3.Dot(axis, Vector3.forward) > 0.99f) return "+Z";
@@ -299,7 +299,7 @@ namespace org.Tayou.AmityEdits {
         // axis, and the radius is measured from the axis running through the
         // mesh's own centroid -- not the object origin -- so off-center meshes
         // don't inflate the cross-section.
-        private static void ComputeRadiusSamples(Renderer renderer, Material resolverMat, Vector3 axisOS) {
+        internal static void ComputeRadiusSamples(Renderer renderer, Material resolverMat, Vector3 axisOS) {
             const int bucketCount = 16;
 
             var mesh = renderer.GetMesh();

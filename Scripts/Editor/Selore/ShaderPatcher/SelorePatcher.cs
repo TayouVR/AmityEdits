@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using nadena.dev.ndmf;
 using UnityEditor;
+using UnityEditor.Rendering;
 using UnityEngine;
 
 namespace org.Tayou.AmityEdits {
@@ -29,6 +30,51 @@ namespace org.Tayou.AmityEdits {
                     $"Report this on the Amity Github issues. " +
                     $"Maybe this shader isn't supported yet.\n\n{mat.shader.name}\n\n{e.Message}", e);
             }
+        }
+
+        /// Locks an unlocked Poiyomi/Thry material (turns `.poiyomi/Poiyomi Toon` into
+        /// `Hidden/Locked/...`). Must run BEFORE patching: the unlocked shader is a
+        /// huge ThryEditor template that can't be patched, and the patcher's
+        /// `Hidden/Locked/` naming special case only applies to locked shaders.
+        /// Same approach VRCFury uses. No-op for non-Thry shaders.
+        public static void LockPoiyomiIfNeeded(Material mat) {
+            if (mat == null || mat.shader == null) return;
+            if (mat.shader.name.StartsWith("Hidden/Locked/")) return;
+
+            var optimizer = GetThryOptimizerType();
+            if (optimizer == null) return;
+
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+            var isThry = optimizer.GetMethod("IsShaderUsingThryOptimizer", flags);
+            var setLocked = optimizer.GetMethod("SetLockedForAllMaterials", flags);
+            if (isThry == null || setLocked == null) return;
+            if (!(bool)ReflectionUtils.CallWithOptionalParams(isThry, null, mat.shader)) return;
+
+            Debug.Log($"[Selore] Locking Poiyomi material '{mat.name}' before patching.");
+            AssetDatabaseHelper.WithoutAssetEditing(() => {
+                var ok = (bool)ReflectionUtils.CallWithOptionalParams(setLocked, null, new[] { mat }, 1);
+                if (!ok) {
+                    throw new Exception("Poiyomi's lockdown method returned false. Check the console for the reason, " +
+                                        "or lock the material manually (and update Poiyomi if it is out of date).");
+                }
+            });
+            if (!mat.shader.name.StartsWith("Hidden/Locked/")) {
+                throw new Exception("Failed to lock the Poiyomi material. Try locking it manually in the inspector.");
+            }
+        }
+
+        private static Type GetThryOptimizerType() {
+            return ReflectionUtils.GetTypeFromAnyAssembly("Thry.ThryEditor.ShaderOptimizer")
+                   ?? ReflectionUtils.GetTypeFromAnyAssembly("Thry.ShaderOptimizer");
+        }
+
+        /// Copies the thry rename suffix onto `copy` so properties stay addressable after locking.
+        public static void PreserveThryRenameSuffix(Material original, Material copy) {
+            var getSuffix = GetThryOptimizerType()?.GetMethod("GetRenamedPropertySuffix",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (getSuffix == null) return;
+            var suffix = (string)getSuffix.Invoke(null, new object[] { original });
+            if (suffix != null) copy.SetOverrideTag("thry_rename_suffix", suffix);
         }
 
         private static Regex GetRegex(string pattern) {
@@ -105,7 +151,9 @@ namespace org.Tayou.AmityEdits {
                 newShaderName = $"Hidden/SelorePatched/{hash}";
             }
             var alreadyExists = Shader.Find(newShaderName);
-            if (alreadyExists != null) {
+            // A previously generated shader that failed to compile is NOT reusable:
+            // fall through and regenerate it (which also re-reports the error).
+            if (alreadyExists != null && !ShaderUtil.ShaderHasError(alreadyExists)) {
                 Debug.Log($"[Selore] Reusing existing patched shader '{newShaderName}'");
                 return new PatchResult {
                     shader = alreadyExists,
@@ -178,7 +226,34 @@ namespace org.Tayou.AmityEdits {
 
             var newShader = Shader.Find(newShaderName);
             if (!newShader) {
-                throw new Exception("Patch succeeded, but shader failed to compile. Check the unity log for compile error.\n\n" + newPath);
+                // Shader.Find returning null means Unity could not even register the
+                // shader (ShaderLab parse error, or the declared name doesn't match).
+                // Report what we can see instead of a generic message.
+                var loaded = AssetDatabase.LoadAssetAtPath<Shader>(newPath);
+                var detail = loaded != null
+                    ? $"The file imported as shader '{loaded.name}' (expected '{newShaderName}')." + FormatShaderErrors(loaded)
+                    : "Unity did not import it as a shader at all (ShaderLab syntax error?). " +
+                      "Open the file and check the Console / the shader asset's inspector for the first error.";
+                throw new Exception($"Patch succeeded, but the generated shader could not be registered. {detail}\n\n{newPath}");
+            }
+
+            if (ShaderUtil.ShaderHasError(newShader)) {
+                // Force compilation of every pass so the messages are populated.
+                var testMat = new Material(shader);
+                try {
+                    for (var i = 0; i < testMat.passCount; i++) {
+                        ShaderUtil.CompilePass(testMat, i, true);
+                    }
+                } finally {
+                    UnityEngine.Object.DestroyImmediate(testMat);
+                }
+                if (ShaderUtil.ShaderHasError(shader)) {
+                    throw new Exception(
+                        $"The original shader '{shader.name}' ({AssetDatabase.GetAssetPath(shader)}) already has " +
+                        "compile errors before patching." + FormatShaderErrors(shader));
+                }
+                throw new Exception("Patch succeeded, but the patched shader failed to compile." +
+                                    FormatShaderErrors(newShader) + $"\n\n{newPath}");
             }
 
             Debug.Log($"[Selore] Patched shader ready: '{newShaderName}' ({newPath})");
@@ -189,7 +264,26 @@ namespace org.Tayou.AmityEdits {
             };
         }
 
+        private static string FormatShaderErrors(Shader shader, int max = 5) {
+            try {
+                var errors = ShaderUtil.GetShaderMessages(shader)
+                    .Where(m => m.severity == ShaderCompilerMessageSeverity.Error)
+                    .Take(max)
+                    .Select(m => $"{m.file}:{m.line} {m.message}")
+                    .ToArray();
+                if (errors.Length == 0) return " (Unity reported no shader messages.)";
+                return "\n" + string.Join("\n", errors);
+            } catch (Exception e) {
+                return $" (could not read shader messages: {e.Message})";
+            }
+        }
+
         private static string PatchPass(string pass, string seloreMain, bool isSurfaceShader, bool spsEnabled) {
+            // Meta / Never passes are never rendered with deformation; patching them only adds
+            // compile risk (and some, like Poiyomi's, have no standard #pragma vertex).
+            if (GetRegex(@"""LightMode""\s*=\s*""(?:Meta|Never)""").IsMatch(pass)) {
+                return pass;
+            }
             var newVertFunction = "seloreVert";
             var pragmaKeyword = isSurfaceShader ? "surface" : "vertex";
             string oldVertFunction = null;
