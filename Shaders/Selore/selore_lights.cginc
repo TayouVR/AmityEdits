@@ -20,7 +20,7 @@
 
 #include "UnityShaderVariables.cginc"
 
-#include "globals.cginc"
+#include "selore_globals.cginc"
 
 // Helper to extract range from Unity light attenuation
 float GetCalculatedRange(int i) {

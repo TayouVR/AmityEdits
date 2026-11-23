@@ -18,10 +18,10 @@
 #ifndef SELORE_CORE
 #define SELORE_CORE
 
-#include "globals.cginc"
-#include "lights.cginc"
-#include "spline.cginc"
-#include "spline_chain.cginc"
+#include "selore_globals.cginc"
+#include "selore_lights.cginc"
+#include "selore_spline.cginc"
+#include "selore_spline_chain.cginc"
 #include "utils.cginc"
 
 #if defined(SELORE_SPS)

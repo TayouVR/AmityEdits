@@ -211,29 +211,41 @@ namespace org.Tayou.AmityEdits {
                 throw new Exception($"No passes found");
             }
 
-            var assetContainerPath = Path.GetDirectoryName(AssetDatabase.GetAssetPath(ctx.AssetContainer));
+            var assetContainerPath = Path.GetDirectoryName(AssetDatabase.GetAssetPath(ctx.AssetContainer))
+                ?.Replace('\\', '/');
             var newPathDir = $"{assetContainerPath}/Selore";
             var newPath = $"{newPathDir}/{hash}.shader";
             Debug.Log($"[Selore] Writing patched shader to {newPath}");
-            AssetDatabaseHelper.WithAssetEditing(() => {
-                Directory.CreateDirectory(newPathDir);
-                WriteFile(newPath, contents);
-            });
             AssetDatabaseHelper.WithoutAssetEditing(() => {
-                AssetDatabase.ImportAsset(newPath, ImportAssetOptions.ForceSynchronousImport);
+                // The folder must be registered with the AssetDatabase. A folder that only exists
+                // on disk (Directory.CreateDirectory) has no .meta, and Unity then never imports
+                // the files inside it until the next full refresh, i.e. after the build is over.
+                EnsureAssetFolder(newPathDir);
+                WriteFile(newPath, contents);
+                AssetDatabase.ImportAsset(newPath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
             });
             Debug.Log($"[Selore] Imported {newPath}");
 
             var newShader = Shader.Find(newShaderName);
             if (!newShader) {
+                // Last resort: a full synchronous refresh.
+                AssetDatabaseHelper.WithoutAssetEditing(() => {
+                    AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                });
+                newShader = Shader.Find(newShaderName);
+            }
+            if (!newShader) {
                 // Shader.Find returning null means Unity could not even register the
                 // shader (ShaderLab parse error, or the declared name doesn't match).
                 // Report what we can see instead of a generic message.
                 var loaded = AssetDatabase.LoadAssetAtPath<Shader>(newPath);
+                var diagnostics = $"[folder registered: {AssetDatabase.IsValidFolder(newPathDir)}, " +
+                                  $"file exists: {File.Exists(newPath)}, " +
+                                  $"guid: '{AssetDatabase.AssetPathToGUID(newPath)}']";
                 var detail = loaded != null
                     ? $"The file imported as shader '{loaded.name}' (expected '{newShaderName}')." + FormatShaderErrors(loaded)
                     : "Unity did not import it as a shader at all (ShaderLab syntax error?). " +
-                      "Open the file and check the Console / the shader asset's inspector for the first error.";
+                      "Open the file and check the Console / the shader asset's inspector for the first error. " + diagnostics;
                 throw new Exception($"Patch succeeded, but the generated shader could not be registered. {detail}\n\n{newPath}");
             }
 
@@ -262,6 +274,28 @@ namespace org.Tayou.AmityEdits {
                 shader = newShader,
                 patchedPasses = patchedPasses
             };
+        }
+
+        /// Creates `folder` (an "Assets/..." path) through the AssetDatabase, one level at a time,
+        /// so it gets a .meta and is importable immediately.
+        private static void EnsureAssetFolder(string folder) {
+            if (string.IsNullOrEmpty(folder) || folder == "Assets" || folder == "Packages") return;
+            if (AssetDatabase.IsValidFolder(folder)) return;
+
+            var slash = folder.LastIndexOf('/');
+            if (slash <= 0) return;
+            var parent = folder.Substring(0, slash);
+            var name = folder.Substring(slash + 1);
+            EnsureAssetFolder(parent);
+
+            if (Directory.Exists(folder)) {
+                // Exists on disk but unknown to the database: let Unity pick it up.
+                AssetDatabase.ImportAsset(folder, ImportAssetOptions.ForceSynchronousImport);
+                if (AssetDatabase.IsValidFolder(folder)) return;
+            }
+            if (string.IsNullOrEmpty(AssetDatabase.CreateFolder(parent, name)) && !AssetDatabase.IsValidFolder(folder)) {
+                throw new Exception("Failed to create asset folder " + folder);
+            }
         }
 
         private static string FormatShaderErrors(Shader shader, int max = 5) {

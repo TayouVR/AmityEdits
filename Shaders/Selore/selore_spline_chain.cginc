@@ -18,8 +18,8 @@
 #ifndef SELORE_SPLINE_CHAIN
 #define SELORE_SPLINE_CHAIN
 
-#include "globals.cginc"
-#include "spline.cginc"
+#include "selore_globals.cginc"
+#include "selore_spline.cginc"
 #include "utils.cginc"
 
 // Generic N-segment extension of the two-orifice spline in spline.cginc.

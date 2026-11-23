@@ -4879,7 +4879,7 @@ Shader ".poiyomi/Selore Poiyomi Toon Outline Early"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
-			#include "../../core.cginc" // Selore penetrator deform
+			#include "../../selore_core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -10166,7 +10166,7 @@ Shader ".poiyomi/Selore Poiyomi Toon Outline Early"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
-			#include "../../core.cginc" // Selore penetrator deform
+			#include "../../selore_core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -21270,7 +21270,7 @@ Shader ".poiyomi/Selore Poiyomi Toon Outline Early"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
-			#include "../../core.cginc" // Selore penetrator deform
+			#include "../../selore_core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"
@@ -41782,7 +41782,7 @@ Shader ".poiyomi/Selore Poiyomi Toon Outline Early"
 			
 			// UNITY Includes
 			#include "UnityCG.cginc"
-			#include "../../core.cginc" // Selore penetrator deform
+			#include "../../selore_core.cginc" // Selore penetrator deform
 			//#include "UnityStandardUtils.cginc"
 			#include "AutoLight.cginc"
 			//#include "UnityLightingCommon.cginc"

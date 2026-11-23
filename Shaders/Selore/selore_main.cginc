@@ -22,7 +22,7 @@
 #ifndef SELORE_PATCH_MAIN
 #define SELORE_PATCH_MAIN
 
-#include "core.cginc"
+#include "selore_core.cginc"
 
 // Wraps SeloreDeform with the (inout pos, inout normal, inout color) signature the
 // patcher injects. Early-exits when the penetrator is disabled, so the cost on

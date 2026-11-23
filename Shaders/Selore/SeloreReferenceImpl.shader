@@ -68,10 +68,10 @@ Shader ".Amity/Selore Reference Impl" {
 	        // Physically based Standard lighting model, and enable shadows on all light types
 	        #pragma vertex vert
 	        #pragma fragment frag
-	        #include "core.cginc"
+	        #include "selore_core.cginc"
 	        #include "UnityCG.cginc"
 	        
-	        #include "globals.cginc"
+	        #include "selore_globals.cginc"
 
 	        #pragma multi_compile _ SELORE_SPS
 	        #pragma target 5.0
